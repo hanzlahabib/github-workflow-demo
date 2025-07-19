@@ -377,6 +377,16 @@ export interface IVideo extends Document {
       exportFormats?: string[];
     };
   };
+  progress?: {
+    phase: 'bundling' | 'rendering' | 'encoding' | 'completed';
+    percentage: number;
+    message: string;
+    renderedFrames?: number;
+    totalFrames?: number;
+    estimatedTimeRemaining?: number;
+    startedAt?: Date;
+    lastUpdate?: Date;
+  };
   metadata: {
     size: number;
     format: string;
@@ -593,6 +603,27 @@ const videoSchema = new Schema<IVideo>({
   shares: {
     type: Number,
     default: 0
+  },
+  progress: {
+    phase: {
+      type: String,
+      enum: ['bundling', 'rendering', 'encoding', 'completed']
+    },
+    percentage: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 0
+    },
+    message: String,
+    renderedFrames: Number,
+    totalFrames: Number,
+    estimatedTimeRemaining: Number,
+    startedAt: Date,
+    lastUpdate: {
+      type: Date,
+      default: Date.now
+    }
   }
 }, {
   timestamps: true

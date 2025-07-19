@@ -2,14 +2,37 @@ import express, { Response } from 'express';
 import { Video, Job as JobModel, User } from '../models';
 import { AuthRequest } from '../utils/jwt';
 import { authenticateToken, requirePremium } from '../middleware/auth';
+import { VideoService } from '../services/videoService';
 // import { videoQueue } from '../config/redis'; // Temporarily disabled for testing
 
 const router = express.Router();
 
 router.post('/generate', async (req: any, res: Response) => {
   try {
-    const { type, title, description, input, settings } = req.body;
-    const userId = 'test-user-id'; // Temporary test user ID
+    console.log('[API] 🔍 Raw request body received:', {
+      bodyKeys: Object.keys(req.body),
+      body: req.body
+    });
+    
+    const { type, title, description, input, settings, userId } = req.body;
+    
+    console.log('[API] 📦 Extracted request data:', {
+      type,
+      title,
+      description,
+      inputKeys: input ? Object.keys(input) : 'undefined',
+      input: input,
+      settingsKeys: settings ? Object.keys(settings) : 'undefined',
+      userId
+    });
+    
+    // ❌ NO HARDCODED USER IDs - Require userId from request
+    if (!userId) {
+      return res.status(400).json({
+        error: 'User ID is required',
+        code: 'MISSING_USER_ID'
+      });
+    }
 
     if (!type || !input || !settings) {
       return res.status(400).json({
@@ -18,32 +41,23 @@ router.post('/generate', async (req: any, res: Response) => {
       });
     }
 
-    // For testing - create mock user or bypass user lookup
-    let user;
-    try {
-      user = await User.findById(userId);
-      if (!user) {
-        // Create mock user for testing
-        user = {
-          _id: userId,
-          plan: 'free',
-          email: 'test@example.com',
-          firstName: 'Test',
-          lastName: 'User'
-        };
-        console.log('Using mock user for testing');
-      }
-    } catch (error) {
-      // If user lookup fails, use mock user
-      user = {
-        _id: userId,
-        plan: 'free',
-        email: 'test@example.com',
-        firstName: 'Test',
-        lastName: 'User'
-      };
-      console.log('User lookup failed, using mock user for testing');
+    // ❌ NO MOCK USERS - Require valid user authentication
+    console.log('[API] Looking up user:', userId);
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      console.error('[API] ❌ User not found:', userId);
+      return res.status(401).json({
+        error: 'User not found. Please ensure you are properly authenticated.',
+        code: 'USER_NOT_FOUND'
+      });
     }
+
+    console.log('[API] ✅ Valid user found:', {
+      userId: user._id,
+      plan: user.plan,
+      email: user.email
+    });
 
     if (user.plan === 'free') {
       const monthlyVideos = await Video.countDocuments({
@@ -69,7 +83,14 @@ router.post('/generate', async (req: any, res: Response) => {
         ...settings,
         hasWatermark: user.plan === 'free'
       },
-      status: 'processing'
+      status: 'processing',
+      progress: {
+        phase: 'bundling',
+        percentage: 0,
+        message: 'Initializing video generation...',
+        startedAt: new Date(),
+        lastUpdate: new Date()
+      }
     });
 
     await video.save();
@@ -105,18 +126,87 @@ router.post('/generate', async (req: any, res: Response) => {
     // video.jobId = bullJob.id; // Temporarily disabled
     await video.save();
 
-    // Update user stats (skip for mock user)
+    // Since queue is disabled, process video generation directly
+    console.log('[API] Queue disabled, processing video generation directly...');
     try {
-      if (typeof user._id === 'string' && user._id !== 'test-user-id') {
-        await User.findByIdAndUpdate(userId, {
-          $inc: { videosCreated: 1, points: 10 }
-        });
-      } else {
-        console.log('Skipping user stats update for mock user');
-      }
+      const videoService = new VideoService();
+      
+      // Process the video generation asynchronously
+      setImmediate(async () => {
+        try {
+          console.log('[API] 🔄 Starting direct video generation...');
+          console.log('[API] 📝 Input object details:', {
+            inputKeys: input ? Object.keys(input) : 'undefined',
+            hasConfig: !!(input?.config),
+            inputConfigKeys: input?.config ? Object.keys(input.config) : 'no config',
+            inputText: input?.text?.substring(0, 50) + '...',
+            settingsKeys: settings ? Object.keys(settings) : 'undefined',
+            type
+          });
+          
+          const videoServiceRequest = {
+            type: type as any,
+            input: input,
+            settings: settings,
+            userId: userId
+          };
+          
+          console.log('[API] 📤 Calling VideoService.generateVideo with:', {
+            requestKeys: Object.keys(videoServiceRequest),
+            inputKeys: videoServiceRequest.input ? Object.keys(videoServiceRequest.input) : 'undefined',
+            hasInputConfig: !!(videoServiceRequest.input?.config)
+          });
+          
+          const result = await videoService.generateVideo(videoServiceRequest, (progressUpdate) => {
+            console.log('[API] 📊 Progress Update:', progressUpdate);
+            
+            // Update video record with progress in real-time
+            Video.findByIdAndUpdate(video._id, {
+              'progress.phase': progressUpdate.phase,
+              'progress.percentage': progressUpdate.progress,
+              'progress.message': progressUpdate.message,
+              'progress.renderedFrames': progressUpdate.renderedFrames || 0,
+              'progress.totalFrames': progressUpdate.totalFrames || 0,
+              updatedAt: new Date()
+            }).catch(err => console.error('[API] Progress update failed:', err));
+          });
+          
+          console.log('[API] Video generation completed:', result);
+          
+          // Update video record with result
+          try {
+            await Video.findByIdAndUpdate(video._id, {
+              status: result.success ? 'completed' : 'failed',
+              outputPath: result.outputPath,
+              error: result.error
+            });
+          } catch (dbError) {
+            console.error('[API] Failed to update video in database:', dbError);
+          }
+          
+        } catch (genError) {
+          console.error('[API] Video generation failed:', genError);
+          try {
+            await Video.findByIdAndUpdate(video._id, {
+              status: 'failed',
+              error: genError.message
+            });
+          } catch (dbError) {
+            console.error('[API] Failed to update video error in database:', dbError);
+          }
+        }
+      });
+      
     } catch (error) {
-      console.log('Failed to update user stats:', error.message);
+      console.error('[API] Failed to start video generation:', error);
     }
+
+    // Update user stats - NO FALLBACKS
+    console.log('[API] Updating user stats for:', userId);
+    await User.findByIdAndUpdate(userId, {
+      $inc: { videosCreated: 1, points: 10 }
+    });
+    console.log('[API] ✅ User stats updated successfully');
 
     res.status(201).json({
       message: 'Video generation started',
@@ -154,14 +244,30 @@ router.get('/status/:videoId', authenticateToken, async (req: AuthRequest, res: 
 
     const job = await JobModel.findOne({ videoId });
 
-    res.json({
+    // Enhanced status response with detailed progress tracking
+    const response = {
+      success: true,
+      videoId: video._id,
+      status: video.status,
+      progress: video.progress?.percentage || 0,
+      message: video.progress?.message || `Status: ${video.status}`,
+      outputPath: video.output?.videoUrl,
       video: {
         id: video._id,
         title: video.title,
         type: video.type,
         status: video.status,
         output: video.output,
-        createdAt: video.createdAt
+        createdAt: video.createdAt,
+        progress: video.progress ? {
+          phase: video.progress.phase,
+          percentage: video.progress.percentage,
+          message: video.progress.message,
+          renderedFrames: video.progress.renderedFrames,
+          totalFrames: video.progress.totalFrames,
+          estimatedTimeRemaining: video.progress.estimatedTimeRemaining,
+          lastUpdate: video.progress.lastUpdate
+        } : null
       },
       job: job ? {
         id: job._id,
@@ -171,7 +277,17 @@ router.get('/status/:videoId', authenticateToken, async (req: AuthRequest, res: 
         createdAt: job.createdAt,
         completedAt: job.completedAt
       } : null
+    };
+
+    console.log('[API] 📊 Sending status response:', {
+      videoId: video._id,
+      status: video.status,
+      progress: video.progress?.percentage || 0,
+      phase: video.progress?.phase,
+      message: video.progress?.message
     });
+
+    res.json(response);
 
   } catch (error) {
     console.error('Get video status error:', error);
