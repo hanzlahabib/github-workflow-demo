@@ -1,4 +1,4 @@
-import fetch from 'node-fetch';
+import { ElevenLabs } from '@elevenlabs/elevenlabs-js';
 import fs from 'fs';
 import path from 'path';
 
@@ -12,32 +12,30 @@ export interface ElevenLabsConfig {
 export interface Voice {
   voice_id: string;
   name: string;
-  preview_url?: string;
-  category: string;
-  labels: {
-    accent?: string;
-    age?: string;
-    gender?: string;
-    use_case?: string;
-  };
+  samples?: Array<{
+    sample_id: string;
+    file_name: string;
+    mime_type: string;
+    size_bytes: number;
+    hash: string;
+  }>;
+  category?: string;
+  labels: Record<string, string>;
   description?: string;
-  available_for_tiers?: string[];
-}
-
-export interface VoiceSettings {
-  stability: number; // 0.0 - 1.0
-  similarity_boost: number; // 0.0 - 1.0
-  style?: number; // 0.0 - 1.0
-  use_speaker_boost?: boolean;
+  preview_url?: string;
+  available_for_tiers: string[];
+  settings?: any;
+  high_quality_base_model_ids: string[];
+  safety_control?: string;
 }
 
 export interface TextToSpeechRequest {
   text: string;
   voice_id: string;
-  voice_settings?: VoiceSettings;
+  voice_settings?: any;
   language_code?: string;
   model_id?: string;
-  output_format?: 'mp3_22050_32' | 'mp3_44100_32' | 'mp3_44100_64' | 'mp3_44100_96' | 'mp3_44100_128' | 'mp3_44100_192' | 'pcm_16000' | 'pcm_22050' | 'pcm_24000' | 'pcm_44100' | 'ulaw_8000';
+  output_format?: string;
 }
 
 export interface AudioGenerationResponse {
@@ -45,6 +43,12 @@ export interface AudioGenerationResponse {
   content_type: string;
   filename: string;
   duration_ms?: number;
+}
+
+export interface VoicesListResponse {
+  voices: Voice[];
+  has_more: boolean;
+  last_sort_id?: string;
 }
 
 export interface SupportedLanguage {
@@ -123,28 +127,43 @@ export const SUPPORTED_LANGUAGES: SupportedLanguage[] = [
 ];
 
 class ElevenLabsService {
-  private apiKey: string;
-  private baseUrl: string;
+  private client: any;
   private maxRetries: number;
   private timeout: number;
 
   constructor(config: ElevenLabsConfig) {
-    this.apiKey = config.apiKey;
-    this.baseUrl = config.baseUrl || 'https://api.elevenlabs.io/v1';
+    this.client = new (ElevenLabs as any)({
+      apiKey: config.apiKey,
+    });
     this.maxRetries = config.maxRetries || 3;
     this.timeout = config.timeout || 30000;
   }
 
-  async getVoices(): Promise<Voice[]> {
+  async getVoices(): Promise<VoicesListResponse> {
     try {
       console.log('[ElevenLabs] Fetching available voices');
       
-      const response = await this.makeRequest('/voices', {
-        method: 'GET',
-      });
+      const response = await this.client.voices.getAll();
+      
+      // Transform SDK response to our interface
+      const voices: Voice[] = response.voices.map((voice: any) => ({
+        voice_id: voice.voice_id,
+        name: voice.name,
+        samples: voice.samples,
+        category: voice.category,
+        labels: voice.labels || {},
+        description: voice.description,
+        preview_url: voice.preview_url,
+        available_for_tiers: voice.available_for_tiers || [],
+        settings: voice.settings,
+        high_quality_base_model_ids: voice.high_quality_base_model_ids || [],
+        safety_control: voice.safety_control,
+      }));
 
-      const data = await response.json() as { voices: Voice[] };
-      return data.voices;
+      return {
+        voices,
+        has_more: false, // SDK doesn't provide pagination info
+      };
     } catch (error) {
       console.error('[ElevenLabs] Failed to fetch voices:', error);
       throw new Error(`Failed to fetch voices: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -155,11 +174,21 @@ class ElevenLabsService {
     try {
       console.log(`[ElevenLabs] Fetching voice details for: ${voiceId}`);
       
-      const response = await this.makeRequest(`/voices/${voiceId}`, {
-        method: 'GET',
-      });
-
-      return await response.json() as Voice;
+      const voice = await this.client.voices.get(voiceId);
+      
+      return {
+        voice_id: voice.voice_id,
+        name: voice.name,
+        samples: voice.samples,
+        category: voice.category,
+        labels: voice.labels || {},
+        description: voice.description,
+        preview_url: voice.preview_url,
+        available_for_tiers: voice.available_for_tiers || [],
+        settings: voice.settings,
+        high_quality_base_model_ids: voice.high_quality_base_model_ids || [],
+        safety_control: voice.safety_control,
+      };
     } catch (error) {
       console.error('[ElevenLabs] Failed to fetch voice details:', error);
       throw new Error(`Failed to fetch voice details: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -170,7 +199,8 @@ class ElevenLabsService {
     try {
       console.log(`[ElevenLabs] Generating speech for voice: ${request.voice_id}`);
       
-      const payload = {
+      const audioGenerator = await this.client.textToSpeech.convert({
+        voice_id: request.voice_id,
         text: request.text,
         model_id: request.model_id || 'eleven_multilingual_v2',
         voice_settings: request.voice_settings || {
@@ -179,29 +209,21 @@ class ElevenLabsService {
           style: 0.0,
           use_speaker_boost: true,
         },
-      };
-
-      const response = await this.makeRequest(`/text-to-speech/${request.voice_id}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'audio/mpeg',
-        },
-        body: JSON.stringify(payload),
+        output_format: request.output_format as any || 'mp3_44100_128',
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`ElevenLabs API error: ${response.status} - ${errorText}`);
+      // Convert async generator to buffer
+      const chunks: Buffer[] = [];
+      for await (const chunk of audioGenerator) {
+        chunks.push(chunk);
       }
+      const audioBuffer = Buffer.concat(chunks);
 
-      const audioBuffer = Buffer.from(await response.arrayBuffer());
-      const contentType = response.headers.get('content-type') || 'audio/mpeg';
       const filename = `speech_${Date.now()}.mp3`;
 
       return {
         audio_data: audioBuffer,
-        content_type: contentType,
+        content_type: 'audio/mpeg',
         filename,
         duration_ms: this.estimateAudioDuration(request.text),
       };
@@ -211,11 +233,12 @@ class ElevenLabsService {
     }
   }
 
-  async generateSpeechStream(request: TextToSpeechRequest): Promise<ReadableStream> {
+  async generateSpeechStream(request: TextToSpeechRequest): Promise<AsyncGenerator<Buffer, void, unknown>> {
     try {
       console.log(`[ElevenLabs] Generating speech stream for voice: ${request.voice_id}`);
       
-      const payload = {
+      return this.client.textToSpeech.convert({
+        voice_id: request.voice_id,
         text: request.text,
         model_id: request.model_id || 'eleven_multilingual_v2',
         voice_settings: request.voice_settings || {
@@ -224,23 +247,8 @@ class ElevenLabsService {
           style: 0.0,
           use_speaker_boost: true,
         },
-      };
-
-      const response = await this.makeRequest(`/text-to-speech/${request.voice_id}/stream`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'audio/mpeg',
-        },
-        body: JSON.stringify(payload),
+        output_format: request.output_format as any || 'mp3_44100_128',
       });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`ElevenLabs API error: ${response.status} - ${errorText}`);
-      }
-
-      return response.body!;
     } catch (error) {
       console.error('[ElevenLabs] Speech stream generation failed:', error);
       throw new Error(`Speech stream generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -282,8 +290,8 @@ class ElevenLabsService {
     return (genderVoices as any)[style] || (genderVoices as any).professional || Object.values(genderVoices)[0];
   }
 
-  getOptimalVoiceSettings(language: string, speed: 'slow' | 'normal' | 'fast' = 'normal'): VoiceSettings {
-    const baseSettings: VoiceSettings = {
+  getOptimalVoiceSettings(language: string, speed: 'slow' | 'normal' | 'fast' = 'normal'): any {
+    const baseSettings: any = {
       stability: 0.5,
       similarity_boost: 0.8,
       style: 0.0,
@@ -331,50 +339,6 @@ class ElevenLabsService {
     return SUPPORTED_LANGUAGES;
   }
 
-  private async makeRequest(endpoint: string, options: RequestInit = {}): Promise<Response> {
-    const url = `${this.baseUrl}${endpoint}`;
-    const headers = {
-      'xi-api-key': this.apiKey,
-      ...options.headers,
-    };
-
-    let lastError: Error | null = null;
-
-    for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-        const response = await fetch(url, {
-          ...options,
-          headers,
-          signal: controller.signal,
-        } as any);
-
-        clearTimeout(timeoutId);
-        
-        if (!response.ok && response.status >= 500) {
-          throw new Error(`Server error: ${response.status}`);
-        }
-
-        return response as any;
-      } catch (error) {
-        lastError = error as Error;
-        console.warn(`[ElevenLabs] Request attempt ${attempt} failed:`, error);
-        
-        if (attempt === this.maxRetries) {
-          break;
-        }
-
-        // Exponential backoff
-        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-
-    throw lastError || new Error('Max retries exceeded');
-  }
-
   private estimateAudioDuration(text: string): number {
     // Rough estimation: average speaking rate is ~150 words per minute
     const words = text.split(' ').length;
@@ -383,34 +347,24 @@ class ElevenLabsService {
     return Math.round(minutes * 60 * 1000); // Convert to milliseconds
   }
 
-  async getVoiceSettings(voiceId: string): Promise<VoiceSettings> {
+  async getVoiceSettings(voiceId: string): Promise<any> {
     try {
       console.log(`[ElevenLabs] Fetching voice settings for: ${voiceId}`);
       
-      const response = await this.makeRequest(`/voices/${voiceId}/settings`, {
-        method: 'GET',
-      });
-
-      return await response.json() as VoiceSettings;
+      const settings = await this.client.voices.getSettings(voiceId);
+      return settings;
     } catch (error) {
       console.error('[ElevenLabs] Failed to fetch voice settings:', error);
       throw new Error(`Failed to fetch voice settings: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  async updateVoiceSettings(voiceId: string, settings: VoiceSettings): Promise<VoiceSettings> {
+  async updateVoiceSettings(voiceId: string, settings: any): Promise<any> {
     try {
       console.log(`[ElevenLabs] Updating voice settings for: ${voiceId}`);
       
-      const response = await this.makeRequest(`/voices/${voiceId}/settings/edit`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(settings),
-      });
-
-      return await response.json() as VoiceSettings;
+      const updatedSettings = await this.client.voices.editSettings(voiceId, settings);
+      return updatedSettings;
     } catch (error) {
       console.error('[ElevenLabs] Failed to update voice settings:', error);
       throw new Error(`Failed to update voice settings: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -438,6 +392,50 @@ class ElevenLabsService {
       console.error('[ElevenLabs] Connection test failed:', error);
       return false;
     }
+  }
+
+  // New method for generating speech for individual messages
+  async generateMessageSpeech(messageText: string, voiceId: string, messageId: string): Promise<AudioGenerationResponse> {
+    try {
+      console.log(`[ElevenLabs] Generating speech for message ${messageId} with voice: ${voiceId}`);
+      
+      const request: TextToSpeechRequest = {
+        text: messageText,
+        voice_id: voiceId,
+        voice_settings: this.getOptimalVoiceSettings('en'), // Default to English, can be made dynamic
+        model_id: 'eleven_multilingual_v2',
+      };
+
+      const response = await this.generateSpeech(request);
+      
+      // Update filename to include message ID
+      response.filename = `message_${messageId}_${Date.now()}.mp3`;
+      
+      return response;
+    } catch (error) {
+      console.error(`[ElevenLabs] Failed to generate speech for message ${messageId}:`, error);
+      throw new Error(`Failed to generate speech for message: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // Batch generate speech for multiple messages
+  async generateBatchSpeech(messages: Array<{ id: string; text: string; voiceId: string }>): Promise<Array<{ messageId: string; audioResponse: AudioGenerationResponse }>> {
+    const results: Array<{ messageId: string; audioResponse: AudioGenerationResponse }> = [];
+    
+    for (const message of messages) {
+      try {
+        const audioResponse = await this.generateMessageSpeech(message.text, message.voiceId, message.id);
+        results.push({
+          messageId: message.id,
+          audioResponse,
+        });
+      } catch (error) {
+        console.error(`[ElevenLabs] Failed to generate speech for message ${message.id}:`, error);
+        // Continue with other messages even if one fails
+      }
+    }
+    
+    return results;
   }
 }
 

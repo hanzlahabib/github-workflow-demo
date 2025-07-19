@@ -1,11 +1,12 @@
 import { Worker, Job } from 'bullmq';
 import { connection } from '../config/redis';
-import { Video, Job as JobModel } from '../models';
-import { getOpenAIService } from '../services/openai';
-import { getElevenLabsService } from '../services/elevenlabs';
-import { getWhisperService } from '../services/whisper';
+// import { Video, Job as JobModel } from '../models'; // Disabled for testing without database
 import { getRemotionService } from '../services/remotion';
-import { getS3Service } from '../services/s3';
+import { VideoService } from '../services/videoService';
+// import { getOpenAIService } from '../services/openai';
+// import { getElevenLabsService } from '../services/elevenlabs';
+// import { getWhisperService } from '../services/whisper';
+// import { getS3Service } from '../services/s3';
 
 interface VideoJobData {
   videoId: string;
@@ -21,112 +22,80 @@ export const videoWorker = new Worker(
     const { videoId, userId, type, input, settings } = job.data;
     
     try {
+      console.log(`[VideoWorker] Starting video generation for ${videoId}`);
       await updateJobProgress(job, 0, 'Starting video generation...');
       
-      const video = await Video.findById(videoId);
-      if (!video) {
-        throw new Error('Video not found');
-      }
+      // Skip database lookups for testing
+      console.log(`[VideoWorker] Processing ${type} video with input:`, input);
 
-      await updateJobProgress(job, 10, 'Generating script...');
+      await updateJobProgress(job, 10, 'Preparing render data...');
       
-      let script = input.script;
-      if (!script && input.text) {
-        const openaiService = getOpenAIService();
-        const scriptResponse = await openaiService.generateScript({
-          videoType: type as any,
-          topic: input.text,
-          duration: settings.duration || 30,
-          language: settings.language || 'en'
-        });
-        script = scriptResponse.script;
-      }
-
-      await updateJobProgress(job, 25, 'Generating voiceover...');
+      // Use VideoService to properly transform input data
+      console.log(`[VideoWorker] Creating VideoService instance...`);
+      const videoService = new VideoService();
       
-      const elevenlabsService = getElevenLabsService();
-      const audioResponse = await elevenlabsService.generateSpeech({
-        text: script,
-        voice_id: settings.voice || 'EXAVITQu4vr4xnSDxMaL',
-        language_code: settings.language || 'en'
+      await updateJobProgress(job, 20, 'Transforming input data...');
+      
+      // Use the proper prepareInputProps method that handles enhanced config
+      const renderData = await videoService.prepareInputProps({
+        type: type as any,
+        input: input,
+        settings: settings,
+        userId: userId
       });
-
-      await updateJobProgress(job, 40, 'Generating captions...');
       
-      const whisperService = getWhisperService();
-      const captions = await whisperService.generateCaptions(audioResponse.audio_data);
+      console.log(`[VideoWorker] Transformed render data:`, JSON.stringify(renderData, null, 2));
 
-      await updateJobProgress(job, 55, 'Rendering video...');
+      await updateJobProgress(job, 30, 'Setting up Remotion render...');
+
+      await updateJobProgress(job, 50, 'Rendering video...');
+      console.log(`[VideoWorker] Starting Remotion render with data:`, renderData);
       
-      const renderData = {
-        script,
-        audioData: audioResponse.audio_data,
-        captions,
-        background: settings.background,
-        music: settings.music,
-        template: settings.template,
-        type,
-        settings
-      };
-
       const remotionService = getRemotionService();
       const videoResult = await remotionService.renderVideo({
-        compositionId: type === 'story' ? 'TextStoryVideo' : 'MyComposition',
-        inputProps: renderData
+        compositionId: 'ChatReel',
+        inputProps: renderData,
+        width: 1080,
+        height: 1920,
+        fps: 30,
+        codec: 'h264'
+      }, (progress) => {
+        console.log(`[VideoWorker] Render progress:`, progress);
+        if (progress.progress) {
+          updateJobProgress(job, Math.min(50 + (progress.progress * 0.4), 90), progress.message || 'Rendering...');
+        }
       });
-
-      await updateJobProgress(job, 80, 'Uploading video...');
-      
-      const s3Service = getS3Service();
-      const uploadResult = await s3Service.uploadFile(videoResult.outputPath, {
-        key: `videos/${videoId}.mp4`,
-        contentType: 'video/mp4'
-      });
-      const videoUrl = uploadResult.url;
-      const thumbnailUrl = await generateThumbnail(videoResult.outputPath, videoId);
 
       await updateJobProgress(job, 95, 'Finalizing...');
       
-      await Video.findByIdAndUpdate(videoId, {
-        status: 'completed',
-        'output.videoUrl': videoUrl,
-        'output.thumbnailUrl': thumbnailUrl,
-        'output.captions': captions,
-        'output.duration': (videoResult as any).durationInFrames || settings.duration || 30,
-        processingTime: Date.now() - (job.timestamp || Date.now())
-      });
+      if (!videoResult.success) {
+        throw new Error(videoResult.error || 'Video rendering failed');
+      }
+
+      console.log(`[VideoWorker] Video rendered successfully:`, videoResult.outputPath);
 
       await updateJobProgress(job, 100, 'Video generation completed!');
       
       return {
         success: true,
-        videoUrl,
-        thumbnailUrl,
-        captions
+        videoPath: videoResult.outputPath,
+        sizeInBytes: videoResult.sizeInBytes,
+        duration: videoResult.durationInSeconds,
+        videoId
       };
 
     } catch (error) {
-      console.error('Video generation error:', error);
+      console.error('[VideoWorker] Video generation error:', error);
       
-      await Video.findByIdAndUpdate(videoId, {
-        status: 'failed'
-      });
-
-      await JobModel.findOneAndUpdate(
-        { videoId },
-        {
-          status: 'failed',
-          'data.error': error.message,
-          completedAt: new Date()
-        }
-      );
+      // Skip database updates for testing
+      console.log(`[VideoWorker] Job ${videoId} failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
 
       throw error as Error;
     }
   },
   {
     connection,
-    concurrency: 5,
+    concurrency: 1, // Reduce concurrency for testing
     stalledInterval: 30 * 1000,
     maxStalledCount: 1,
   }
@@ -134,16 +103,18 @@ export const videoWorker = new Worker(
 
 async function updateJobProgress(job: Job, progress: number, message: string) {
   await job.updateProgress(progress);
+  console.log(`[VideoWorker] Progress ${progress}%: ${message}`);
   
-  await JobModel.findOneAndUpdate(
-    { jobId: job.id },
-    {
-      progress,
-      status: progress === 100 ? 'completed' : 'processing',
-      'data.message': message,
-      ...(progress === 100 && { completedAt: new Date() })
-    }
-  );
+  // Skip database updates for testing
+  // await JobModel.findOneAndUpdate(
+  //   { jobId: job.id },
+  //   {
+  //     progress,
+  //     status: progress === 100 ? 'completed' : 'processing',
+  //     'data.message': message,
+  //     ...(progress === 100 && { completedAt: new Date() })
+  //   }
+  // );
 }
 
 async function generateThumbnail(videoPath: string, videoId: string): Promise<string> {

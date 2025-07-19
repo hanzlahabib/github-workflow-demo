@@ -13,19 +13,19 @@ const redis = new Redis({
 
 export const connection = redis;
 
-// Temporarily disable queue creation at module level to test server startup
-// export const videoQueue = new Queue('video-processing', {
-//   connection,
-//   defaultJobOptions: {
-//     removeOnComplete: 10,
-//     removeOnFail: 50,
-//     attempts: 3,
-//     backoff: {
-//       type: 'exponential',
-//       delay: 2000,
-//     },
-//   },
-// });
+// Video processing queue
+export const videoQueue = new Queue('video-processing', {
+  connection,
+  defaultJobOptions: {
+    removeOnComplete: 10,
+    removeOnFail: 50,
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 2000,
+    },
+  },
+});
 
 export const createJobQueues = () => {
   const queues = {

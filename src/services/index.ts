@@ -4,8 +4,8 @@
 // OpenAI Service - GPT-4 integration
 export {
   default as OpenAIService,
-  _createOpenAIService,
-  _getOpenAIService,
+  createOpenAIService,
+  getOpenAIService,
   type OpenAIConfig,
   type ScriptGenerationRequest,
   type ScriptGenerationResponse,
@@ -18,11 +18,11 @@ export {
 // ElevenLabs Service - Voice generation
 export {
   default as ElevenLabsService,
-  _createElevenLabsService,
-  _getElevenLabsService,
+  createElevenLabsService,
+  getElevenLabsService,
   type ElevenLabsConfig,
   type Voice,
-  type VoiceSettings,
+  // type VoiceSettings, // Removed as it's no longer exported
   type TextToSpeechRequest,
   type AudioGenerationResponse,
   type SupportedLanguage,
@@ -33,8 +33,8 @@ export {
 // Whisper Service - Caption generation
 export {
   default as WhisperService,
-  _createWhisperService,
-  _getWhisperService,
+  createWhisperService,
+  getWhisperService,
   type WhisperConfig,
   type TranscriptionRequest,
   type TranscriptionResponse,
@@ -46,8 +46,8 @@ export {
 // DALL-E Service - AI image generation
 export {
   default as DalleService,
-  _createDalleService,
-  _getDalleService,
+  createDalleService,
+  getDalleService,
   type DalleConfig,
   type ImageGenerationRequest,
   type GeneratedImage,
@@ -59,8 +59,8 @@ export {
 // S3 Service - AWS S3 integration
 export {
   default as S3Service,
-  _createS3Service,
-  _getS3Service,
+  createS3Service,
+  getS3Service,
   type S3Config,
   type UploadOptions,
   type UploadResult,
@@ -73,8 +73,8 @@ export {
 // Remotion Service - Video rendering
 export {
   default as RemotionService,
-  _createRemotionService,
-  _getRemotionService,
+  createRemotionService,
+  getRemotionService,
   type RemotionConfig,
   type RenderRequest,
   type VideoTemplate,
@@ -92,7 +92,7 @@ import { _createElevenLabsService as __createElevenLabsService, _getElevenLabsSe
 import { _createWhisperService as __createWhisperService, _getWhisperService as __getWhisperService } from './whisper';
 import { _createDalleService as __createDalleService, _getDalleService as __getDalleService } from './dalle';
 import { _createS3Service as __createS3Service, _getS3Service as __getS3Service } from './s3';
-import { _createRemotionService as __createRemotionService, _getRemotionService as __getRemotionService } from './remotion';
+import { createRemotionService as __createRemotionService, getRemotionService as __getRemotionService } from './remotion';
 
 // Service initialization and management
 export interface AIServicesConfig {
@@ -166,7 +166,7 @@ export function initializeAIServices(config: AIServicesConfig) {
     });
 
     // Initialize Remotion Service
-    _createRemotionService({
+    __createRemotionService({
       compositionsPath: config.remotion.compositionsPath,
       outputDir: config.remotion.outputDir,
       lambdaRegion: config.remotion.lambdaRegion,
@@ -236,7 +236,7 @@ export async function testAllServices(): Promise<{ [service: string]: boolean }>
 
     // Test Remotion
     try {
-      const remotion = _getRemotionService();
+      const remotion = __getRemotionService();
       results.remotion = await remotion.testConnection();
     } catch (error) {
       console.warn('[AI Services] Remotion service not initialized');
@@ -334,8 +334,8 @@ export class AIWorkflowUtils {
     userId: string,
     videoId: string
   ) {
-    const remotion = _getRemotionService();
-    const s3 = _getS3Service();
+    const remotion = __getRemotionService();
+    const s3 = __getS3Service();
 
     // Render video
     const renderResult = await remotion.renderFromTemplate(templateId, props);
