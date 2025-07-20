@@ -421,4 +421,52 @@ router.post('/:videoId/retry', authenticateToken, async (req: AuthRequest, res: 
   }
 });
 
+router.post('/:videoId/cancel', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { videoId } = req.params;
+    const userId = req.user!.userId;
+
+    const video = await Video.findOne({ _id: videoId, userId });
+    if (!video) {
+      return res.status(404).json({
+        error: 'Video not found',
+        code: 'VIDEO_NOT_FOUND'
+      });
+    }
+
+    if (video.status !== 'processing') {
+      return res.status(400).json({
+        error: 'Can only cancel processing videos',
+        code: 'INVALID_STATUS'
+      });
+    }
+
+    // Update video status to cancelled
+    video.status = 'cancelled';
+    video.error = 'Generation cancelled by user';
+    await video.save();
+
+    // Cancel any associated jobs
+    await JobModel.updateMany(
+      { videoId },
+      { 
+        status: 'cancelled',
+        error: 'Generation cancelled by user',
+        updatedAt: new Date()
+      }
+    );
+
+    res.json({
+      message: 'Video generation cancelled successfully'
+    });
+
+  } catch (error) {
+    console.error('Cancel video error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      code: 'SERVER_ERROR'
+    });
+  }
+});
+
 export default router;
