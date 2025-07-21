@@ -1,5 +1,5 @@
 import express, { Response } from 'express';
-import { Video, User } from '../models';
+import { Video } from '../models';
 import { AuthRequest } from '../utils/jwt';
 import { authenticateToken } from '../middleware/auth';
 
@@ -21,7 +21,7 @@ router.post('/analyze-conversation', authenticateToken, async (req: AuthRequest,
     // Calculate conversation metrics
     const totalMessages = messages.length;
     const avgMessageLength = messages.reduce((sum, msg) => sum + msg.text.length, 0) / totalMessages;
-    
+
     // Analyze emotional arc
     const emotionalKeywords = {
       positive: ['happy', 'excited', 'amazing', 'great', 'love', 'awesome', 'fantastic', 'wonderful'],
@@ -32,15 +32,15 @@ router.post('/analyze-conversation', authenticateToken, async (req: AuthRequest,
     const emotionalArc = messages.map(msg => {
       const text = msg.text.toLowerCase();
       let score = 0;
-      
+
       emotionalKeywords.positive.forEach(word => {
         if (text.includes(word)) score += 1;
       });
-      
+
       emotionalKeywords.negative.forEach(word => {
         if (text.includes(word)) score -= 1;
       });
-      
+
       return score;
     });
 
@@ -55,18 +55,18 @@ router.post('/analyze-conversation', authenticateToken, async (req: AuthRequest,
     };
 
     const viralScore = Math.round(
-      (viralFactors.messageCount * 0.2 + 
-       viralFactors.averageLength * 0.15 + 
-       viralFactors.emotionalVariance * 0.25 + 
-       viralFactors.hasHook * 0.2 + 
-       viralFactors.hasCliffhanger * 0.1 + 
+      (viralFactors.messageCount * 0.2 +
+       viralFactors.averageLength * 0.15 +
+       viralFactors.emotionalVariance * 0.25 +
+       viralFactors.hasHook * 0.2 +
+       viralFactors.hasCliffhanger * 0.1 +
        viralFactors.conversationFlow * 0.1) * 100
     );
 
     // Generate content tags
     const contentTags = [];
     const allText = messages.map(m => m.text).join(' ').toLowerCase();
-    
+
     const tagCategories = {
       'drama': ['drama', 'fight', 'argument', 'conflict', 'tension'],
       'comedy': ['funny', 'joke', 'hilarious', 'laugh', 'lol', 'haha'],
@@ -86,9 +86,9 @@ router.post('/analyze-conversation', authenticateToken, async (req: AuthRequest,
 
     // Predict engagement based on conversation patterns
     const engagementPrediction = Math.round(
-      (viralScore * 0.4 + 
-       emotionalArc.length * 2 + 
-       contentTags.length * 10 + 
+      (viralScore * 0.4 +
+       emotionalArc.length * 2 +
+       contentTags.length * 10 +
        (totalMessages > 8 ? 20 : 0)) * 0.8
     );
 
@@ -101,7 +101,7 @@ router.post('/analyze-conversation', authenticateToken, async (req: AuthRequest,
         example: 'Try starting with "You won\'t believe what just happened..." or "URGENT: Need advice NOW"'
       });
     }
-    
+
     if (avgMessageLength > 150) {
       suggestions.push({
         type: 'length',
@@ -109,7 +109,7 @@ router.post('/analyze-conversation', authenticateToken, async (req: AuthRequest,
         example: 'Break long messages into 2-3 shorter ones for better pacing'
       });
     }
-    
+
     if (emotionalArc.every(score => score === 0)) {
       suggestions.push({
         type: 'emotion',
@@ -160,13 +160,13 @@ router.post('/analyze-conversation', authenticateToken, async (req: AuthRequest,
 // AI-powered viral script generation
 router.post('/generate-viral-script', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    const { 
-      prompt, 
-      tone = 'casual', 
-      length = 'medium', 
+    const {
+      prompt,
+      tone = 'casual',
+      length = 'medium',
       scriptType = 'story',
       targetDemographic = 'general',
-      people 
+      people
     } = req.body;
     const userId = req.user!.userId;
 
@@ -272,10 +272,10 @@ router.post('/generate-viral-script', authenticateToken, async (req: AuthRequest
     for (let i = 2; i <= targetLength; i++) {
       const isLeft = i % 2 === 0;
       const sender = isLeft ? 'left' : 'right';
-      
+
       // Generate contextual response based on position in conversation
       let messageText = '';
-      
+
       if (i === 2) {
         // First response - curiosity/engagement
         messageText = isLeft ? "What happened??" : "OMG tell me everything!";
@@ -437,12 +437,12 @@ router.get('/trending-templates', async (req, res) => {
 // Advanced text video generation with USP features
 router.post('/generate-advanced', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    const { 
-      messages, 
-      people, 
-      template, 
+    const {
+      messages,
+      people,
+      template,
       settings,
-      advancedFeatures = {} 
+      advancedFeatures = {}
     } = req.body;
     const userId = req.user!.userId;
 

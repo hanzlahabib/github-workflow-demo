@@ -6,11 +6,11 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const app = express();
-const PORT = parseInt(process.env.PORT || '3000');
+const PORT = parseInt(process.env.PORT || '3030');
 
 // Middleware
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: ['http://localhost:5173', 'http://localhost:3000', process.env.CORS_ORIGIN].filter(Boolean),
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -22,23 +22,33 @@ const testAuth = (req: any, res: any, next: any) => {
 };
 
 // Initialize ElevenLabs client
-let elevenLabsClient: any = null;
+const elevenLabsClient: any = null;
 
 async function initElevenLabs() {
   try {
+    console.log('🔍 ELEVENLABS_API_KEY check:', process.env.ELEVENLABS_API_KEY ? `${process.env.ELEVENLABS_API_KEY.substring(0, 10)}...` : 'NOT SET');
+
     if (!process.env.ELEVENLABS_API_KEY || process.env.ELEVENLABS_API_KEY === 'your-real-api-key-here') {
       console.log('⚠️ Using mock ElevenLabs API - set ELEVENLABS_API_KEY for real testing');
       return null;
     }
 
-    const ElevenLabsModule = await import('@elevenlabs/elevenlabs-js');
-    const ElevenLabs = ElevenLabsModule.ElevenLabs;
-    elevenLabsClient = new ElevenLabs({
+    console.log('📦 Loading ElevenLabs service...');
+    const { createElevenLabsService } = await import('./services/elevenlabs');
+
+    console.log('🔧 Creating ElevenLabs service...');
+    const service = createElevenLabsService({
       apiKey: process.env.ELEVENLABS_API_KEY
     });
 
-    console.log('✅ ElevenLabs client initialized');
-    return elevenLabsClient;
+    console.log('🧪 Testing ElevenLabs connection...');
+    const testConnection = await service.testConnection();
+    if (!testConnection) {
+      throw new Error('Connection test failed');
+    }
+
+    console.log('✅ ElevenLabs service initialized successfully');
+    return service;
   } catch (error) {
     console.error('❌ ElevenLabs initialization failed:', error);
     return null;
@@ -47,8 +57,8 @@ async function initElevenLabs() {
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'OK',
     elevenlabs: !!elevenLabsClient,
     timestamp: new Date().toISOString()
   });
@@ -58,48 +68,17 @@ app.get('/health', (req, res) => {
 app.get('/api/voices/list', testAuth, async (req, res) => {
   try {
     if (!elevenLabsClient) {
-      // Return mock voices
-      return res.json({
-        voices: [
-          {
-            voice_id: 'pNInz6obpgDQGcFmaJgB',
-            name: 'Adam',
-            gender: 'male',
-            age: 'middle_aged',
-            accent: 'american',
-            description: 'Deep voice',
-            available_for_tiers: ['free', 'starter', 'creator', 'pro']
-          },
-          {
-            voice_id: 'EXAVITQu4vr4xnSDxMaL',
-            name: 'Sarah',
-            gender: 'female',
-            age: 'young',
-            accent: 'american',
-            description: 'Clear voice',
-            available_for_tiers: ['free', 'starter', 'creator', 'pro']
-          }
-        ],
-        total: 2,
-        hasMore: false
-      });
+      return res.status(500).json({ error: 'ElevenLabs service not available' });
     }
 
-    const response = await elevenLabsClient.voices.getAll();
-    const voices = response.voices.map((voice: any) => ({
-      voice_id: voice.voice_id,
-      name: voice.name,
-      gender: voice.labels?.gender || 'unknown',
-      age: voice.labels?.age || 'unknown',
-      accent: voice.labels?.accent || 'neutral',
-      description: voice.description || '',
-      available_for_tiers: voice.available_for_tiers || []
-    }));
+    const voicesResponse = await elevenLabsClient.getVoices();
+    console.log(`[DEBUG] ElevenLabs returned ${voicesResponse.voices.length} voices`);
 
+    // Return ElevenLabs data as-is for better performance
     res.json({
-      voices,
-      total: voices.length,
-      hasMore: false
+      voices: voicesResponse.voices,
+      total: voicesResponse.voices.length,
+      hasMore: voicesResponse.has_more
     });
   } catch (error) {
     console.error('Error fetching voices:', error);
@@ -109,8 +88,12 @@ app.get('/api/voices/list', testAuth, async (req, res) => {
 
 app.post('/api/voices/preview', testAuth, async (req, res) => {
   try {
-    const { voiceId, text } = req.body;
-    
+    const { voiceId, text = "Hello! This is a preview of this voice." } = req.body;
+
+    if (!voiceId) {
+      return res.status(400).json({ error: 'Voice ID is required' });
+    }
+
     if (!elevenLabsClient) {
       // Return mock audio
       const mockAudio = Buffer.from(`Mock audio for voice ${voiceId}: "${text}"`);
@@ -121,35 +104,24 @@ app.post('/api/voices/preview', testAuth, async (req, res) => {
       return res.send(mockAudio);
     }
 
-    console.log(`Generating preview for voice ${voiceId}: "${text?.substring(0, 50)}..."`);
+    // Limit preview text length
+    const previewText = text.substring(0, 100);
 
-    const audioGenerator = await elevenLabsClient.textToSpeech.convert({
+    const audioResponse = await elevenLabsClient.generateSpeech({
       voice_id: voiceId,
-      text: text || "Hello! This is a voice preview.",
+      text: previewText,
       model_id: 'eleven_multilingual_v2',
-      voice_settings: {
-        stability: 0.5,
-        similarity_boost: 0.8,
-        style: 0.0,
-        use_speaker_boost: true
-      },
-      output_format: 'mp3_44100_128'
+      voice_settings: elevenLabsClient.getOptimalVoiceSettings('en'),
     });
-
-    // Convert async generator to buffer
-    const chunks: Buffer[] = [];
-    for await (const chunk of audioGenerator) {
-      chunks.push(chunk);
-    }
-    const audioBuffer = Buffer.concat(chunks);
 
     res.set({
-      'Content-Type': 'audio/mpeg',
-      'Content-Length': audioBuffer.length.toString(),
-      'Cache-Control': 'public, max-age=3600'
+      'Content-Type': audioResponse.content_type,
+      'Content-Length': audioResponse.audio_data.length,
+      'Cache-Control': 'public, max-age=3600',
+      'Content-Disposition': `inline; filename="${audioResponse.filename}"`,
     });
 
-    res.send(audioBuffer);
+    res.send(audioResponse.audio_data);
   } catch (error) {
     console.error('Error generating preview:', error);
     res.status(500).json({ error: 'Failed to generate preview' });
@@ -161,8 +133,8 @@ app.post('/api/voices/generate-message', testAuth, async (req, res) => {
     const { messageId, text, voiceId, language = 'en' } = req.body;
 
     if (!messageId || !text || !voiceId) {
-      return res.status(400).json({ 
-        error: 'Message ID, text, and voice ID are required' 
+      return res.status(400).json({
+        error: 'Message ID, text, and voice ID are required'
       });
     }
 
@@ -181,8 +153,7 @@ app.post('/api/voices/generate-message', testAuth, async (req, res) => {
 
     console.log(`Generating speech for message ${messageId} with voice ${voiceId}`);
 
-    const audioGenerator = await elevenLabsClient.textToSpeech.convert({
-      voice_id: voiceId,
+    const audioGenerator = await elevenLabsClient.textToSpeech.convert(voiceId, {
       text,
       model_id: 'eleven_multilingual_v2',
       voice_settings: {
@@ -203,7 +174,7 @@ app.post('/api/voices/generate-message', testAuth, async (req, res) => {
 
     // In production, you'd upload to S3 here
     const audioUrl = `http://localhost:${PORT}/generated-audio/${messageId}.mp3`;
-    
+
     res.json({
       success: true,
       messageId,
@@ -248,7 +219,7 @@ app.use((error: any, req: any, res: any, next: any) => {
 async function startServer() {
   try {
     await initElevenLabs();
-    
+
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Test server running on port ${PORT}`);
       console.log(`🔗 Health check: http://localhost:${PORT}/health`);

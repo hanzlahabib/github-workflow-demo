@@ -1,25 +1,58 @@
-import express from 'express';
+// Node.js built-in modules
+import fs from 'fs';
+import path from 'path';
+
+// External dependencies
 import cors from 'cors';
-// import { initializeVideoServices } from './config/services'; // Temporarily disabled for testing
+import express from 'express';
+
+// Configuration
+import { initializeConfig, getServerConfig, getAIConfig, getStorageConfig, getCacheConfig, getFeatureFlags, useMockServices } from './config';
+
+// Types
+import type { VideoGenerationRequest, VideoStatusResponse } from './types/api';
+
+// Services
+import { initializeCacheService } from './services/cache';
+import { createElevenLabsService } from './services/elevenlabs';
+import { createS3Service } from './services/s3';
+
+// Routes
+import voiceRoutes from './routes/voices';
+
+// Temporarily disabled imports for testing
+// import { initializeVideoServices } from './config/services';
 // import { database } from './config/database';
 // import authRoutes from './routes/auth';
 // import videoRoutes from './routes/video';
 // import textVideoRoutes from './routes/textVideo';
-// import { voiceRoutes } from './routes/voices';
 // import { avatarRoutes } from './routes/avatars';
 // import { initializeWebSocket } from './utils/websocket';
-// import './workers/videoWorker'; // Temporarily disabled due to service dependency issues
+// import './workers/videoWorker';
 
 const app = express();
-const PORT = parseInt(process.env.PORT || '8001');
+
+// Initialize centralized configuration
+let serverConfig: ReturnType<typeof getServerConfig>;
+try {
+  const { env, config: appConfig } = initializeConfig();
+  console.log('🔍 App config:', appConfig, env);
+  serverConfig = appConfig.server;
+  console.log(`[Config] Backend initialized with centralized configuration`);
+} catch (error) {
+  console.error('Failed to initialize configuration:', error);
+  process.exit(1);
+}
+
+const PORT = serverConfig.port;
 
 // Store video generation status in memory for testing
-const videoStatuses: { [videoId: string]: { 
-  status: string; 
-  progress: number; 
-  message: string; 
-  outputPath?: string; 
-  error?: string; 
+const videoStatuses: { [videoId: string]: {
+  status: string;
+  progress: number;
+  message: string;
+  outputPath?: string;
+  error?: string;
   sizeInBytes?: number;
   duration?: number;
 } } = {};
@@ -29,10 +62,10 @@ async function generateVideoAsync(videoId: string, type: string, input: any, set
   try {
     console.log(`[VideoGen] Starting native video generation for ${videoId}`);
     videoStatuses[videoId] = { status: 'processing', progress: 5, message: 'Initializing video service...' };
-    
+
     // Import the native video service
     const { videoService } = await import('./services/videoService');
-    
+
     // Prepare the request - PRESERVE ORIGINAL INPUT INCLUDING CONFIG
     const request = {
       type: type as 'story' | 'reddit' | 'quiz' | 'educational',
@@ -64,7 +97,7 @@ async function generateVideoAsync(videoId: string, type: string, input: any, set
     // Generate video with progress callback
     const result = await videoService.generateVideo(request, (progress) => {
       console.log(`[VideoGen] Progress update:`, progress);
-      
+
       // Update status based on progress
       videoStatuses[videoId] = {
         status: 'processing',
@@ -75,11 +108,10 @@ async function generateVideoAsync(videoId: string, type: string, input: any, set
 
     if (result.success && result.outputPath) {
       console.log(`[VideoGen] Video generation completed for ${videoId}`);
-      
+
       // Get the filename from the full path
-      const path = require('path');
       const fileName = path.basename(result.outputPath);
-      
+
       videoStatuses[videoId] = {
         status: 'completed',
         progress: 100,
@@ -97,7 +129,7 @@ async function generateVideoAsync(videoId: string, type: string, input: any, set
         error: result.error || 'Unknown error during video generation'
       };
     }
-    
+
   } catch (error) {
     console.error(`[VideoGen] Error generating video ${videoId}:`, error);
     videoStatuses[videoId] = {
@@ -124,178 +156,91 @@ async function startServer() {
     }
 
     // Middleware
-    app.use(cors());
+    app.use(cors({
+      origin: serverConfig.cors
+    }));
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
 
-    // Simple mock voice routes for development
-    app.get('/api/voices/list', (req, res) => {
-      const mockVoices = [
-        {
-          voice_id: 'mock_voice_1',
-          name: 'Sarah',
-          category: 'premade',
-          fine_tuning: {
-            is_allowed_to_fine_tune: false,
-            finetuning_state: 'not_started',
-            verification_failures: [],
-            verification_attempts_count: 0,
-            manual_verification_requested: false
-          },
-          labels: {
-            gender: 'female',
-            age: 'middle_aged',
-            accent: 'american',
-            description: 'A clear, professional voice perfect for business content',
-            use_case: 'narration'
-          },
-          description: 'Professional female narrator with clear American accent',
-          available_for_tiers: ['free', 'starter', 'creator', 'pro'],
-          high_quality_base_model_ids: ['eleven_multilingual_v2'],
-          preview_url: 'http://localhost:9000/audio/mock_voice_1_preview.mp3',
-          settings: {
-            stability: 0.5,
-            similarity_boost: 0.8,
-            style: 0.0,
-            use_speaker_boost: true
-          }
-        },
-        {
-          voice_id: 'mock_voice_2',
-          name: 'Mike',
-          category: 'premade',
-          fine_tuning: {
-            is_allowed_to_fine_tune: false,
-            finetuning_state: 'not_started',
-            verification_failures: [],
-            verification_attempts_count: 0,
-            manual_verification_requested: false
-          },
-          labels: {
-            gender: 'male',
-            age: 'young',
-            accent: 'american',
-            description: 'Friendly, casual male voice great for conversational content',
-            use_case: 'conversation'
-          },
-          description: 'Casual male voice with friendly tone',
-          available_for_tiers: ['free', 'starter', 'creator', 'pro'],
-          high_quality_base_model_ids: ['eleven_multilingual_v2'],
-          preview_url: 'http://localhost:9000/audio/mock_voice_2_preview.mp3',
-          settings: {
-            stability: 0.6,
-            similarity_boost: 0.7,
-            style: 0.1,
-            use_speaker_boost: true
-          }
-        },
-        {
-          voice_id: 'mock_voice_3',
-          name: 'Emma',
-          category: 'premade',
-          fine_tuning: {
-            is_allowed_to_fine_tune: false,
-            finetuning_state: 'not_started',
-            verification_failures: [],
-            verification_attempts_count: 0,
-            manual_verification_requested: false
-          },
-          labels: {
-            gender: 'female',
-            age: 'young',
-            accent: 'british',
-            description: 'Energetic and enthusiastic voice perfect for engaging content',
-            use_case: 'entertainment'
-          },
-          description: 'Energetic British female voice',
-          available_for_tiers: ['starter', 'creator', 'pro'],
-          high_quality_base_model_ids: ['eleven_multilingual_v2', 'eleven_english_v2'],
-          preview_url: 'http://localhost:9000/audio/mock_voice_3_preview.mp3',
-          settings: {
-            stability: 0.4,
-            similarity_boost: 0.9,
-            style: 0.2,
-            use_speaker_boost: true
-          }
-        },
-        {
-          voice_id: 'mock_voice_4',
-          name: 'Alex',
-          category: 'premade',
-          fine_tuning: {
-            is_allowed_to_fine_tune: false,
-            finetuning_state: 'not_started',
-            verification_failures: [],
-            verification_attempts_count: 0,
-            manual_verification_requested: false
-          },
-          labels: {
-            gender: 'male',
-            age: 'middle_aged',
-            accent: 'american',
-            description: 'Deep, authoritative voice ideal for storytelling and documentaries',
-            use_case: 'narration'
-          },
-          description: 'Deep male narrator voice',
-          available_for_tiers: ['creator', 'pro'],
-          high_quality_base_model_ids: ['eleven_multilingual_v2', 'eleven_english_v2'],
-          preview_url: 'http://localhost:9000/audio/mock_voice_4_preview.mp3',
-          settings: {
-            stability: 0.7,
-            similarity_boost: 0.8,
-            style: 0.0,
-            use_speaker_boost: true
-          }
-        }
-      ];
-      
-      res.json({ 
-        voices: mockVoices,
-        has_more: false
-      });
-    });
+    // Initialize AI services with centralized config
+    try {
+      const aiConfig = getAIConfig();
+      const storageConfig = getStorageConfig();
 
-    app.post('/api/voices/preview', (req, res) => {
-      try {
-        const { voiceId, text } = req.body || {};
-        console.log(`[Mock] Voice preview request: ${voiceId} - "${text?.substring(0, 50)}..."`);
-        
-        // Create a simple mock audio response
-        const mockAudioContent = `Mock audio for voice ${voiceId || 'unknown'}: "${(text || 'no text')?.substring(0, 50)}..."`;
-        const audioBuffer = Buffer.from(mockAudioContent);
-        
-        res.set({
-          'Content-Type': 'audio/mpeg',
-          'Content-Length': audioBuffer.length.toString(),
-          'Cache-Control': 'public, max-age=3600'
-        });
-        
-        res.send(audioBuffer);
-      } catch (error) {
-        console.error('[Mock] Voice preview error:', error);
-        res.status(500).json({ error: 'Failed to generate voice preview' });
+      if (!useMockServices()) {
+        // Initialize ElevenLabs service
+        createElevenLabsService(aiConfig.elevenlabs);
+        console.log('✅ ElevenLabs service initialized with centralized config');
       }
-    });
 
-    console.log('✅ Mock voice routes enabled');
+      // Initialize S3 service (supports both AWS S3 and Cloudflare R2)
+      if (!useMockServices()) {
+        if (storageConfig.provider === 'cloudflare' && storageConfig.cloudflare) {
+          createS3Service({
+            accessKeyId: storageConfig.cloudflare.accessKey,
+            secretAccessKey: storageConfig.cloudflare.secretKey,
+            region: 'auto', // Cloudflare R2 uses 'auto'
+            bucketName: storageConfig.cloudflare.bucket,
+            endpoint: storageConfig.cloudflare.endpoint
+          });
+          console.log('✅ S3 service initialized with Cloudflare R2 config');
+        } else if (storageConfig.provider === 'aws' && storageConfig.aws) {
+          createS3Service({
+            accessKeyId: storageConfig.aws.accessKeyId,
+            secretAccessKey: storageConfig.aws.secretAccessKey,
+            region: storageConfig.aws.region,
+            bucketName: storageConfig.aws.bucket,
+            endpoint: undefined // AWS S3 doesn't need custom endpoint
+          });
+          console.log('✅ S3 service initialized with AWS S3 config');
+        } else {
+          console.log('⚠️ S3 service not initialized - no valid storage provider configuration found');
+        }
+      } else {
+        console.log('⚠️ S3 service not initialized - using mock services');
+      }
+
+      // Initialize cache service if caching is enabled
+      const { enableCaching } = getFeatureFlags();
+      if (enableCaching) {
+        const cacheConfig = getCacheConfig();
+        initializeCacheService({
+          redis: cacheConfig.redis,
+          defaultTTL: cacheConfig.defaultTTL,
+          memoryFallback: cacheConfig.memoryFallback,
+        });
+        console.log('✅ Cache service initialized');
+      } else {
+        console.log('⚠️ Cache service disabled via ENABLE_CACHING=false');
+      }
+
+      console.log(`✅ Mock services: ${useMockServices() ? 'enabled' : 'disabled'}`);
+    } catch (error) {
+      console.error('❌ Failed to initialize AI services:', error);
+    }
+
+    // Real voice routes using ElevenLabs
+    app.use('/api/voices', voiceRoutes);
+
+    console.log('✅ Real voice routes enabled');
 
     // Video generation routes
     app.post('/api/video/generate', async (req, res) => {
       try {
         const { type, input, settings, userId } = req.body;
         console.log(`[Video] Generation request: ${type}`, { input, settings });
-        
+
         // Create a video ID
         const videoId = `video_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        
+
         // Start video generation in background
         console.log(`[Video] Starting video generation for ${videoId}`);
-        
+
         // Process video generation asynchronously
         generateVideoAsync(videoId, type, input, settings).catch(error => {
           console.error(`[Video] Background generation failed for ${videoId}:`, error);
         });
-        
+
         res.json({
           success: true,
           videoId,
@@ -304,8 +249,8 @@ async function startServer() {
         });
       } catch (error) {
         console.error('[Video] Generation error:', error);
-        res.status(500).json({ 
-          success: false, 
+        res.status(500).json({
+          success: false,
           error: 'Failed to start video generation',
           message: error instanceof Error ? error.message : 'Unknown error'
         });
@@ -316,7 +261,7 @@ async function startServer() {
       try {
         const { videoId } = req.params;
         console.log(`[Video] Status check: ${videoId}`);
-        
+
         const status = videoStatuses[videoId];
         if (!status) {
           return res.json({
@@ -325,7 +270,7 @@ async function startServer() {
             videoId
           });
         }
-        
+
         res.json({
           success: true,
           videoId,
@@ -333,31 +278,29 @@ async function startServer() {
         });
       } catch (error) {
         console.error('[Video] Status check error:', error);
-        res.status(500).json({ 
-          success: false, 
-          error: 'Failed to check video status' 
+        res.status(500).json({
+          success: false,
+          error: 'Failed to check video status'
         });
       }
     });
 
     app.get('/api/video/renders', (req, res) => {
       try {
-        const fs = require('fs');
-        const path = require('path');
-        const rendersDir = path.resolve(__dirname, '../../reelspeed-video-service/renders');
-        
+          const rendersDir = path.resolve(__dirname, '../../reelspeed-video-service/renders');
+
         if (!fs.existsSync(rendersDir)) {
-          return res.json({ 
-            success: true, 
+          return res.json({
+            success: true,
             renders: [],
             message: 'Renders directory not found'
           });
         }
-        
-        const files = fs.readdirSync(rendersDir).filter((file: string) => 
+
+        const files = fs.readdirSync(rendersDir).filter((file: string) =>
           file.endsWith('.mp4') || file.endsWith('.mov')
         );
-        
+
         res.json({
           success: true,
           renders: files.map((file: string) => ({
@@ -368,9 +311,9 @@ async function startServer() {
         });
       } catch (error) {
         console.error('[Video] Renders list error:', error);
-        res.status(500).json({ 
-          success: false, 
-          error: 'Failed to list renders' 
+        res.status(500).json({
+          success: false,
+          error: 'Failed to list renders'
         });
       }
     });
@@ -378,21 +321,19 @@ async function startServer() {
     // Serve rendered videos statically
     app.get('/api/video/download/:filename', (req, res) => {
       try {
-        const fs = require('fs');
-        const path = require('path');
-        const { filename } = req.params;
+          const { filename } = req.params;
         const rendersDir = path.resolve(__dirname, '../../reelspeed-video-service/renders');
         const filePath = path.join(rendersDir, filename);
-        
+
         if (!fs.existsSync(filePath)) {
           return res.status(404).json({ error: 'Video file not found' });
         }
-        
+
         // Set appropriate headers for video streaming
         const stat = fs.statSync(filePath);
         const fileSize = stat.size;
         const range = req.headers.range;
-        
+
         if (range) {
           // Support video streaming with range requests
           const parts = range.replace(/bytes=/, "").split("-");
@@ -424,9 +365,13 @@ async function startServer() {
 
     console.log('✅ Video generation routes enabled');
 
+    // Serve uploaded audio files statically (fallback when S3 is not available)
+    app.use('/uploads/audio', express.static(path.resolve(process.cwd(), 'uploads', 'audio')));
+    console.log('✅ Static audio upload routes enabled');
+
     // Basic route
     app.get('/', (req, res) => {
-      res.json({ 
+      res.json({
         message: 'ReelSpeed Backend API',
         services: {
           voices: '/api/voices/list',
@@ -443,7 +388,7 @@ async function startServer() {
     });
 
     console.log('🚀 About to start server...');
-    
+
     // Start server with error handling - bind to all interfaces for Docker
     const server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`✅ Server successfully started on port ${PORT}`);
@@ -468,7 +413,7 @@ async function startServer() {
       console.log('🔍 Server still running after 2 seconds');
       console.log('🔍 Server listening:', server.listening);
     }, 2000);
-    
+
     console.log('🔍 Server listen called, returning from startServer function');
 
     // Initialize WebSocket - temporarily disabled for testing

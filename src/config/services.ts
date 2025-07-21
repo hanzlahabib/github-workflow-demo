@@ -1,5 +1,5 @@
 import path from 'path';
-import { initializeAIServices, type AIServicesConfig } from '../services';
+import { initializeAIServices } from '../services';
 
 // Local development configuration
 const isDevelopment = process.env.NODE_ENV !== 'production';
@@ -10,54 +10,68 @@ const videoServicePath = path.resolve(__dirname, '../../../reelspeed-video-servi
 // Create renders directory if it doesn't exist
 const rendersDir = path.join(videoServicePath, 'renders');
 
-export const serviceConfig: AIServicesConfig = {
+// Get configuration from centralized config
+import { getAIConfig, getStorageConfig, getRemotionConfig } from './index';
+
+const aiConfig = getAIConfig();
+const storageConfig = getStorageConfig();
+const remotionConfig = getRemotionConfig();
+
+// Service configuration is now handled by ServiceRegistry
+// The centralized config provides the necessary configuration values
+export const serviceConfig = {
   openai: {
-    apiKey: process.env.OPENAI_API_KEY || 'mock_openai_key',
-    organization: process.env.OPENAI_ORGANIZATION,
+    apiKey: aiConfig.openai.apiKey,
+    organization: aiConfig.openai.orgId,
   },
   elevenlabs: {
-    apiKey: process.env.ELEVENLABS_API_KEY || 'mock_elevenlabs_key',
+    apiKey: aiConfig.elevenlabs.apiKey,
   },
   whisper: {
-    apiKey: process.env.OPENAI_API_KEY || 'mock_openai_key',
+    apiKey: aiConfig.openai.apiKey,
   },
   dalle: {
-    apiKey: process.env.OPENAI_API_KEY || 'mock_openai_key',
+    apiKey: aiConfig.openai.apiKey,
   },
-  s3: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'mock_access_key',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'mock_secret_key',
-    region: process.env.AWS_REGION || 'us-east-1',
-    bucketName: process.env.S3_BUCKET_NAME || 'reelspeed-videos-local',
+  s3: storageConfig.provider === 'aws' && storageConfig.aws ? {
+    accessKeyId: storageConfig.aws.accessKeyId,
+    secretAccessKey: storageConfig.aws.secretAccessKey,
+    region: storageConfig.aws.region,
+    bucketName: storageConfig.aws.bucket,
+  } : {
+    accessKeyId: 'mock_access_key',
+    secretAccessKey: 'mock_secret_key',
+    region: 'us-east-1',
+    bucketName: 'reelspeed-videos-local',
   },
   remotion: {
     compositionsPath: videoServicePath,
     outputDir: rendersDir,
-    lambdaRegion: process.env.AWS_REGION || 'us-east-1',
-    lambdaRole: process.env.LAMBDA_ROLE,
+    lambdaRegion: remotionConfig.lambdaRegion,
+    lambdaRole: remotionConfig.lambdaRole,
   },
 };
 
-// Initialize services function
+// Initialize services function using new standardized patterns
 export async function initializeVideoServices() {
   try {
-    console.log('[Services] Initializing video services...');
+    console.log('[Services] Initializing video services with new standardized patterns...');
     console.log('[Services] Video service path:', videoServicePath);
     console.log('[Services] Renders directory:', rendersDir);
-    
-    // Initialize all AI services
-    initializeAIServices(serviceConfig);
-    
+
+    // Initialize all AI services using new ServiceRegistry
+    await initializeAIServices();
+
     console.log('[Services] Video services initialized successfully');
     return true;
   } catch (error) {
     console.error('[Services] Failed to initialize video services:', error);
-    
+
     if (isDevelopment) {
       console.warn('[Services] Running in development mode - some services may use mock implementations');
       return false;
     }
-    
+
     throw error;
   }
 }

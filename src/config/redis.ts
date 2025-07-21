@@ -1,15 +1,21 @@
-import { Queue, Worker, Job } from 'bullmq';
+import { Queue } from 'bullmq';
 import Redis from 'ioredis';
+import { getRedisConfig } from './centralized';
+
+// Get Redis configuration from centralized config
+const redisConfig = getRedisConfig();
 
 // Redis connection for BullMQ
 const redis = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD,
+  host: redisConfig.host,
+  port: redisConfig.port,
+  password: redisConfig.password,
   maxRetriesPerRequest: null,  // BullMQ requires this to be null
   enableReadyCheck: false,
   lazyConnect: true,
 });
+
+console.log(`[Redis] Configured for ${redisConfig.host}:${redisConfig.port}`);
 
 export const connection = redis;
 

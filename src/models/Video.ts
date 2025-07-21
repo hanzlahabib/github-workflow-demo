@@ -6,7 +6,7 @@ export interface IVideo extends Document {
   title: string;
   description?: string;
   type: 'text-story' | 'reddit' | 'fake-text' | 'split' | 'ai-story' | 'would-you-rather' | 'voiceover' | 'quiz' | 'auto-captions' | 'viral-text' | 'ai-text-story' | 'conversation-story' | 'top-5-videos' | 'viral-top-5' | 'ai-top-5' | 'twitter-video' | 'viral-twitter' | 'ai-twitter';
-  status: 'processing' | 'completed' | 'failed';
+  status: 'processing' | 'completed' | 'failed' | 'cancelled';
   input: {
     text?: string;
     script?: string;
@@ -317,6 +317,26 @@ export interface IVideo extends Document {
     duration?: number;
     captions?: string;
   };
+  audioAssets?: {
+    voiceoverUrl?: string;
+    voiceoverKey?: string;
+    messageAudios?: Array<{
+      messageId: string;
+      audioUrl: string;
+      audioKey: string;
+      voiceId?: string;
+      duration?: number;
+    }>;
+    audioMetadata?: {
+      totalDuration: number;
+      totalSize: number;
+      voicesUsed: string[];
+      generatedAt: Date;
+      expiresAt?: Date;
+      environment: string;
+      storageProvider: string;
+    };
+  };
   settings: {
     voice: string;
     language: string;
@@ -399,6 +419,7 @@ export interface IVideo extends Document {
   views: number;
   likes: number;
   shares: number;
+  error?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -427,7 +448,7 @@ const videoSchema = new Schema<IVideo>({
   },
   status: {
     type: String,
-    enum: ['processing', 'completed', 'failed'],
+    enum: ['processing', 'completed', 'failed', 'cancelled'],
     default: 'processing'
   },
   input: {
@@ -504,6 +525,26 @@ const videoSchema = new Schema<IVideo>({
     thumbnailUrl: String,
     duration: Number,
     captions: String
+  },
+  audioAssets: {
+    voiceoverUrl: String,
+    voiceoverKey: String,
+    messageAudios: [{
+      messageId: { type: String, required: true },
+      audioUrl: { type: String, required: true },
+      audioKey: { type: String, required: true },
+      voiceId: String,
+      duration: Number
+    }],
+    audioMetadata: {
+      totalDuration: { type: Number, default: 0 },
+      totalSize: { type: Number, default: 0 },
+      voicesUsed: [{ type: String }],
+      generatedAt: { type: Date, default: Date.now },
+      expiresAt: Date,
+      environment: { type: String, default: () => process.env.NODE_ENV || 'development' },
+      storageProvider: { type: String, default: 'cloudflare-r2' }
+    }
   },
   settings: {
     voice: {
@@ -603,6 +644,10 @@ const videoSchema = new Schema<IVideo>({
   shares: {
     type: Number,
     default: 0
+  },
+  error: {
+    type: String,
+    required: false
   },
   progress: {
     phase: {

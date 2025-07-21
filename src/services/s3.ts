@@ -1,32 +1,30 @@
-import AWS from 'aws-sdk';
+// External dependencies
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, ListObjectsCommand, HeadObjectCommand, CopyObjectCommand, HeadBucketCommand, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand, AbortMultipartUploadCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
+
+// Audio storage imports
+import { getAudioStorageConfig, calculateExpiryDate, AUDIO_PATHS, type AudioType, AUDIO_CONTENT_TYPES } from '../config/audioStorage';
+
+// Node.js built-in modules
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import crypto from 'crypto';
 
-export interface S3Config {
-  accessKeyId: string;
-  secretAccessKey: string;
-  region: string;
-  bucketName: string;
-  endpoint?: string; // For custom S3-compatible services
+// Types
+import type { S3Config, S3UploadOptions, S3UploadResponse } from '@/types/services';
+
+// Extended upload options for backward compatibility
+export interface UploadOptions extends S3UploadOptions {
+  serverSideEncryption?: 'AES256' | 'aws:kms';
+  storageClass?: 'STANDARD' | 'REDUCED_REDUNDANCY' | 'STANDARD_IA' | 'ONEZONE_IA' | 'INTELLIGENT_TIERING' | 'GLACIER' | 'DEEP_ARCHIVE';
+  expires?: Date;
   forcePathStyle?: boolean;
   signatureVersion?: string;
 }
 
-export interface UploadOptions {
-  key?: string; // Custom key, if not provided will be auto-generated
-  contentType?: string;
-  metadata?: { [key: string]: string };
-  acl?: 'private' | 'public-read' | 'public-read-write' | 'authenticated-read';
-  serverSideEncryption?: 'AES256' | 'aws:kms';
-  storageClass?: 'STANDARD' | 'REDUCED_REDUNDANCY' | 'STANDARD_IA' | 'ONEZONE_IA' | 'INTELLIGENT_TIERING' | 'GLACIER' | 'DEEP_ARCHIVE';
-  expires?: Date;
-}
-
-export interface UploadResult {
-  key: string;
-  url: string;
-  etag: string;
+// Use centralized type with additional fields
+export interface UploadResult extends S3UploadResponse {
   location: string;
   bucket: string;
   size?: number;
@@ -80,7 +78,7 @@ export interface MultipartUploadOptions {
 }
 
 class S3Service {
-  private s3: AWS.S3;
+  private s3: S3Client;
   private bucketName: string;
   private region: string;
 
@@ -88,20 +86,17 @@ class S3Service {
     this.bucketName = config.bucketName;
     this.region = config.region;
 
-    // Configure AWS SDK
-    AWS.config.update({
-      accessKeyId: config.accessKeyId,
-      secretAccessKey: config.secretAccessKey,
+    this.s3 = new S3Client({
       region: config.region,
-    });
-
-    this.s3 = new AWS.S3({
+      credentials: {
+        accessKeyId: config.accessKeyId,
+        secretAccessKey: config.secretAccessKey,
+      },
       endpoint: config.endpoint,
-      s3ForcePathStyle: config.forcePathStyle || false,
-      signatureVersion: config.signatureVersion || 'v4',
-      httpOptions: {
-        timeout: 120000, // 2 minutes
-        connectTimeout: 60000, // 1 minute
+      forcePathStyle: config.forcePathStyle || false,
+      requestHandler: {
+        requestTimeout: 120000, // 2 minutes
+        connectionTimeout: 60000, // 1 minute
       },
     });
   }
@@ -109,7 +104,7 @@ class S3Service {
   async uploadFile(filePath: string, options: UploadOptions = {}): Promise<UploadResult> {
     try {
       console.log(`[S3] Uploading file: ${filePath}`);
-      
+
       if (!fs.existsSync(filePath)) {
         throw new Error(`File not found: ${filePath}`);
       }
@@ -120,37 +115,30 @@ class S3Service {
       const key = options.key || this.generateKey(fileName);
       const contentType = options.contentType || this.getContentType(fileName);
 
-      const uploadParams: AWS.S3.PutObjectRequest = {
+      const uploadParams = {
         Bucket: this.bucketName,
         Key: key,
         Body: fileStream,
         ContentType: contentType,
         ACL: options.acl || 'private',
         Metadata: options.metadata || {},
+        ServerSideEncryption: options.serverSideEncryption,
+        StorageClass: options.storageClass,
+        Expires: options.expires,
       };
 
-      if (options.serverSideEncryption) {
-        uploadParams.ServerSideEncryption = options.serverSideEncryption;
-      }
-
-      if (options.storageClass) {
-        uploadParams.StorageClass = options.storageClass;
-      }
-
-      if (options.expires) {
-        uploadParams.Expires = options.expires;
-      }
-
-      const result = await this.s3.upload(uploadParams).promise();
+      const command = new PutObjectCommand(uploadParams);
+      const result = await this.s3.send(command);
 
       console.log(`[S3] File uploaded successfully: ${key}`);
-      
+
+      const location = `https://${this.bucketName}.s3.${this.region}.amazonaws.com/${key}`;
       return {
         key,
-        url: result.Location,
+        url: location,
         etag: result.ETag,
-        location: result.Location,
-        bucket: result.Bucket!,
+        location: location,
+        bucket: this.bucketName,
         size: fileStats.size,
         contentType,
       };
@@ -163,37 +151,33 @@ class S3Service {
   async uploadBuffer(buffer: Buffer, fileName: string, options: UploadOptions = {}): Promise<UploadResult> {
     try {
       console.log(`[S3] Uploading buffer as: ${fileName}`);
-      
+
       const key = options.key || this.generateKey(fileName);
       const contentType = options.contentType || this.getContentType(fileName);
 
-      const uploadParams: AWS.S3.PutObjectRequest = {
+      const uploadParams = {
         Bucket: this.bucketName,
         Key: key,
         Body: buffer,
         ContentType: contentType,
         ACL: options.acl || 'private',
         Metadata: options.metadata || {},
+        ServerSideEncryption: options.serverSideEncryption,
+        StorageClass: options.storageClass,
       };
 
-      if (options.serverSideEncryption) {
-        uploadParams.ServerSideEncryption = options.serverSideEncryption;
-      }
-
-      if (options.storageClass) {
-        uploadParams.StorageClass = options.storageClass;
-      }
-
-      const result = await this.s3.upload(uploadParams).promise();
+      const command = new PutObjectCommand(uploadParams);
+      const result = await this.s3.send(command);
 
       console.log(`[S3] Buffer uploaded successfully: ${key}`);
-      
+
+      const location = `https://${this.bucketName}.s3.${this.region}.amazonaws.com/${key}`;
       return {
         key,
-        url: result.Location,
+        url: location,
         etag: result.ETag,
-        location: result.Location,
-        bucket: result.Bucket!,
+        location: location,
+        bucket: this.bucketName,
         size: buffer.length,
         contentType,
       };
@@ -206,15 +190,16 @@ class S3Service {
   async downloadFile(key: string, localPath: string, options: DownloadOptions = {}): Promise<string> {
     try {
       console.log(`[S3] Downloading file: ${key} to ${localPath}`);
-      
-      const downloadParams: AWS.S3.GetObjectRequest = {
+
+      const downloadParams = {
         Bucket: this.bucketName,
         Key: key,
         ...options,
       };
 
-      const result = await this.s3.getObject(downloadParams).promise();
-      
+      const command = new GetObjectCommand(downloadParams);
+      const result = await this.s3.send(command);
+
       if (!result.Body) {
         throw new Error('No data received from S3');
       }
@@ -224,8 +209,13 @@ class S3Service {
         fs.mkdirSync(dir, { recursive: true });
       }
 
-      fs.writeFileSync(localPath, result.Body as Buffer);
-      
+      const chunks: Buffer[] = [];
+      for await (const chunk of result.Body as any) {
+        chunks.push(chunk);
+      }
+      const buffer = Buffer.concat(chunks);
+      fs.writeFileSync(localPath, buffer);
+
       console.log(`[S3] File downloaded successfully: ${localPath}`);
       return localPath;
     } catch (error) {
@@ -237,21 +227,27 @@ class S3Service {
   async downloadBuffer(key: string, options: DownloadOptions = {}): Promise<Buffer> {
     try {
       console.log(`[S3] Downloading buffer: ${key}`);
-      
-      const downloadParams: AWS.S3.GetObjectRequest = {
+
+      const downloadParams = {
         Bucket: this.bucketName,
         Key: key,
         ...options,
       };
 
-      const result = await this.s3.getObject(downloadParams).promise();
-      
+      const command = new GetObjectCommand(downloadParams);
+      const result = await this.s3.send(command);
+
       if (!result.Body) {
         throw new Error('No data received from S3');
       }
 
+      const chunks: Buffer[] = [];
+      for await (const chunk of result.Body as any) {
+        chunks.push(chunk);
+      }
+      const buffer = Buffer.concat(chunks);
       console.log(`[S3] Buffer downloaded successfully: ${key}`);
-      return result.Body as Buffer;
+      return buffer;
     } catch (error) {
       console.error('[S3] Buffer download failed:', error);
       throw new Error(`Buffer download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -261,11 +257,12 @@ class S3Service {
   async deleteFile(key: string): Promise<void> {
     try {
       console.log(`[S3] Deleting file: ${key}`);
-      
-      await this.s3.deleteObject({
+
+      const command = new DeleteObjectCommand({
         Bucket: this.bucketName,
         Key: key,
-      }).promise();
+      });
+      await this.s3.send(command);
 
       console.log(`[S3] File deleted successfully: ${key}`);
     } catch (error) {
@@ -277,8 +274,8 @@ class S3Service {
   async deleteFiles(keys: string[]): Promise<void> {
     try {
       console.log(`[S3] Deleting ${keys.length} files`);
-      
-      const deleteParams: AWS.S3.DeleteObjectsRequest = {
+
+      const deleteParams = {
         Bucket: this.bucketName,
         Delete: {
           Objects: keys.map(key => ({ Key: key })),
@@ -286,8 +283,9 @@ class S3Service {
         },
       };
 
-      const result = await this.s3.deleteObjects(deleteParams).promise();
-      
+      const command = new DeleteObjectsCommand(deleteParams);
+      const result = await this.s3.send(command);
+
       if (result.Errors && result.Errors.length > 0) {
         console.warn('[S3] Some files failed to delete:', result.Errors);
       }
@@ -302,14 +300,15 @@ class S3Service {
   async listObjects(options: ListObjectsOptions = {}): Promise<S3Object[]> {
     try {
       console.log('[S3] Listing objects');
-      
-      const listParams: AWS.S3.ListObjectsRequest = {
+
+      const listParams = {
         Bucket: this.bucketName,
         ...options,
       };
 
-      const result = await this.s3.listObjects(listParams).promise();
-      
+      const command = new ListObjectsCommand(listParams);
+      const result = await this.s3.send(command);
+
       const objects: S3Object[] = (result.Contents || []).map(obj => ({
         key: obj.Key!,
         lastModified: obj.LastModified!,
@@ -333,7 +332,7 @@ class S3Service {
   async getSignedUrl(key: string, operation: 'getObject' | 'putObject' = 'getObject', options: SignedUrlOptions = {}): Promise<string> {
     try {
       console.log(`[S3] Generating signed URL for: ${key}`);
-      
+
       const params: any = {
         Bucket: this.bucketName,
         Key: key,
@@ -356,8 +355,9 @@ class S3Service {
         params.ResponseContentType = options.responseContentType;
       }
 
-      const url = this.s3.getSignedUrl(operation, params);
-      
+      const command = operation === 'putObject' ? new PutObjectCommand(params) : new GetObjectCommand(params);
+      const url = await getSignedUrl(this.s3, command, { expiresIn: params.Expires });
+
       console.log(`[S3] Signed URL generated successfully`);
       return url;
     } catch (error) {
@@ -366,32 +366,24 @@ class S3Service {
     }
   }
 
-  async getPresignedPost(key: string, options: { 
+  async getPresignedPost(key: string, options: {
     expires?: number;
     conditions?: any[];
     fields?: { [key: string]: string };
   } = {}): Promise<{ url: string; fields: { [key: string]: string } }> {
     try {
       console.log(`[S3] Generating presigned POST for: ${key}`);
-      
-      const params = {
+
+      const result = await createPresignedPost(this.s3, {
         Bucket: this.bucketName,
         Key: key,
         Expires: options.expires || 3600,
         Conditions: options.conditions || [],
         Fields: options.fields || {},
-      };
-
-      return new Promise((resolve, reject) => {
-        this.s3.createPresignedPost(params, (err, data) => {
-          if (err) {
-            reject(err);
-          } else {
-            console.log(`[S3] Presigned POST generated successfully`);
-            resolve(data);
-          }
-        });
       });
+
+      console.log(`[S3] Presigned POST generated successfully`);
+      return result;
     } catch (error) {
       console.error('[S3] Presigned POST generation failed:', error);
       throw new Error(`Presigned POST generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -401,14 +393,15 @@ class S3Service {
   async copyObject(sourceKey: string, destinationKey: string, sourceBucket?: string): Promise<void> {
     try {
       console.log(`[S3] Copying object from ${sourceKey} to ${destinationKey}`);
-      
+
       const copySource = sourceBucket ? `${sourceBucket}/${sourceKey}` : `${this.bucketName}/${sourceKey}`;
-      
-      await this.s3.copyObject({
+
+      const command = new CopyObjectCommand({
         Bucket: this.bucketName,
         CopySource: copySource,
         Key: destinationKey,
-      }).promise();
+      });
+      await this.s3.send(command);
 
       console.log(`[S3] Object copied successfully`);
     } catch (error) {
@@ -417,14 +410,15 @@ class S3Service {
     }
   }
 
-  async headObject(key: string): Promise<AWS.S3.HeadObjectOutput> {
+  async headObject(key: string) {
     try {
       console.log(`[S3] Getting object metadata: ${key}`);
-      
-      const result = await this.s3.headObject({
+
+      const command = new HeadObjectCommand({
         Bucket: this.bucketName,
         Key: key,
-      }).promise();
+      });
+      const result = await this.s3.send(command);
 
       console.log(`[S3] Object metadata retrieved successfully`);
       return result;
@@ -481,7 +475,7 @@ class S3Service {
       '.flv': 'video/x-flv',
       '.webm': 'video/webm',
       '.mkv': 'video/x-matroska',
-      
+
       // Audio
       '.mp3': 'audio/mpeg',
       '.wav': 'audio/wav',
@@ -489,7 +483,7 @@ class S3Service {
       '.aac': 'audio/aac',
       '.ogg': 'audio/ogg',
       '.flac': 'audio/flac',
-      
+
       // Images
       '.jpg': 'image/jpeg',
       '.jpeg': 'image/jpeg',
@@ -498,19 +492,19 @@ class S3Service {
       '.bmp': 'image/bmp',
       '.webp': 'image/webp',
       '.svg': 'image/svg+xml',
-      
+
       // Subtitles
       '.srt': 'text/plain',
       '.vtt': 'text/vtt',
       '.ass': 'text/plain',
       '.ssa': 'text/plain',
-      
+
       // Fonts
       '.ttf': 'font/ttf',
       '.otf': 'font/otf',
       '.woff': 'font/woff',
       '.woff2': 'font/woff2',
-      
+
       // Documents
       '.pdf': 'application/pdf',
       '.txt': 'text/plain',
@@ -523,7 +517,8 @@ class S3Service {
 
   async testConnection(): Promise<boolean> {
     try {
-      await this.s3.headBucket({ Bucket: this.bucketName }).promise();
+      const command = new HeadBucketCommand({ Bucket: this.bucketName });
+      await this.s3.send(command);
       return true;
     } catch (error) {
       console.error('[S3] Connection test failed:', error);
@@ -541,6 +536,234 @@ class S3Service {
 
   getPublicUrl(key: string): string {
     return `https://${this.bucketName}.s3.${this.region}.amazonaws.com/${key}`;
+  }
+
+  // ==========================================
+  // AUDIO-SPECIFIC METHODS
+  // ==========================================
+
+  /**
+   * Generate audio storage key based on type and user
+   */
+  generateAudioKey(userId: string, type: AudioType, id?: string): string {
+    const timestamp = Date.now();
+    const randomId = crypto.randomBytes(4).toString('hex');
+
+    switch (type) {
+      case 'voiceover':
+        return `${AUDIO_PATHS.VOICEOVERS}/${userId}/${timestamp}_${id || randomId}.mp3`;
+      case 'message':
+        return `${AUDIO_PATHS.MESSAGES}/${userId}/${id}_${timestamp}.mp3`;
+      case 'preview':
+        return `${AUDIO_PATHS.PREVIEWS}/${userId}/temp_${timestamp}_${id || randomId}.mp3`;
+      case 'system':
+        return `${AUDIO_PATHS.SYSTEM}/${id || 'sample'}_${randomId}.mp3`;
+      default:
+        return `audio/misc/${userId}/${timestamp}_${randomId}.mp3`;
+    }
+  }
+
+  /**
+   * Upload audio with environment-specific configuration and metadata
+   */
+  async uploadAudioWithMetadata(
+    buffer: Buffer,
+    type: AudioType,
+    userId: string,
+    metadata: {
+      id?: string;
+      voiceId?: string;
+      duration?: number;
+      originalFilename?: string;
+      [key: string]: any;
+    } = {}
+  ): Promise<UploadResult & { expiresAt?: Date }> {
+    try {
+      const config = getAudioStorageConfig();
+      const key = this.generateAudioKey(userId, type, metadata.id || metadata.voiceId);
+      const expiryDate = calculateExpiryDate(type);
+
+      console.log(`[S3Audio] Uploading ${type} audio: ${key}`);
+
+      const uploadParams = {
+        Bucket: config.bucket, // Use environment-specific bucket
+        Key: key,
+        Body: buffer,
+        ContentType: AUDIO_CONTENT_TYPES.mp3,
+        ACL: config.acl,
+        Metadata: {
+          'user-id': userId,
+          'content-type': type,
+          'generated-at': new Date().toISOString(),
+          'expires-at': expiryDate ? expiryDate.toISOString() : 'never',
+          'voice-id': metadata.voiceId || 'unknown',
+          'duration': metadata.duration?.toString() || '0',
+          'original-filename': metadata.originalFilename || '',
+          'environment': process.env.NODE_ENV || 'development',
+          ...Object.fromEntries(
+            Object.entries(metadata).map(([k, v]) => [k, String(v)])
+          )
+        }
+      };
+
+      const command = new PutObjectCommand(uploadParams);
+      const result = await this.s3.send(command);
+
+      // Generate appropriate URL based on ACL
+      const url = config.acl === 'public-read'
+        ? `https://${config.bucket}.s3.${this.region}.amazonaws.com/${key}`
+        : await this.getSignedUrl(key, 'getObject', { expires: config.signedUrlExpiry });
+
+      console.log(`[S3Audio] ${type} audio uploaded successfully: ${key}`);
+
+      return {
+        key,
+        url,
+        etag: result.ETag,
+        location: url,
+        bucket: config.bucket,
+        size: buffer.length,
+        contentType: AUDIO_CONTENT_TYPES.mp3,
+        expiresAt: expiryDate || undefined
+      };
+    } catch (error) {
+      console.error(`[S3Audio] Failed to upload ${type} audio:`, error);
+      throw new Error(`Audio upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get signed URL for audio with appropriate expiry based on environment
+   */
+  async getAudioSignedUrl(key: string, operation: 'getObject' | 'putObject' = 'getObject'): Promise<string> {
+    const config = getAudioStorageConfig();
+    return this.getSignedUrl(key, operation, { expires: config.signedUrlExpiry });
+  }
+
+  /**
+   * List audio files for cleanup based on expiry metadata
+   */
+  async listExpiredAudio(): Promise<Array<{ key: string; expiresAt: Date }>> {
+    try {
+      console.log('[S3Audio] Scanning for expired audio files...');
+
+      const expiredFiles: Array<{ key: string; expiresAt: Date }> = [];
+      const objects = await this.listObjects({ prefix: 'audio/' });
+
+      for (const obj of objects) {
+        try {
+          const metadata = await this.headObject(obj.key);
+          const expiresAtStr = metadata.Metadata?.['expires-at'];
+
+          if (expiresAtStr && expiresAtStr !== 'never') {
+            const expiresAt = new Date(expiresAtStr);
+            if (expiresAt < new Date()) {
+              expiredFiles.push({ key: obj.key, expiresAt });
+            }
+          }
+        } catch (error) {
+          console.warn(`[S3Audio] Could not check expiry for ${obj.key}:`, error);
+        }
+      }
+
+      console.log(`[S3Audio] Found ${expiredFiles.length} expired audio files`);
+      return expiredFiles;
+    } catch (error) {
+      console.error('[S3Audio] Failed to list expired audio:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Clean up expired audio files
+   */
+  async cleanupExpiredAudio(): Promise<{ deletedCount: number; errors: string[] }> {
+    try {
+      console.log('[S3Audio] Starting expired audio cleanup...');
+
+      const expiredFiles = await this.listExpiredAudio();
+
+      if (expiredFiles.length === 0) {
+        console.log('[S3Audio] No expired audio files found');
+        return { deletedCount: 0, errors: [] };
+      }
+
+      const errors: string[] = [];
+      let deletedCount = 0;
+
+      // Delete in batches of 1000 (S3 limit)
+      const batchSize = 1000;
+      for (let i = 0; i < expiredFiles.length; i += batchSize) {
+        const batch = expiredFiles.slice(i, i + batchSize);
+        const keys = batch.map(file => file.key);
+
+        try {
+          await this.deleteFiles(keys);
+          deletedCount += keys.length;
+          console.log(`[S3Audio] Deleted batch of ${keys.length} expired audio files`);
+        } catch (error) {
+          const errorMsg = `Failed to delete batch: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          errors.push(errorMsg);
+          console.error('[S3Audio]', errorMsg);
+        }
+      }
+
+      console.log(`[S3Audio] Cleanup completed: ${deletedCount} files deleted, ${errors.length} errors`);
+      return { deletedCount, errors };
+    } catch (error) {
+      console.error('[S3Audio] Cleanup failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get audio storage statistics for monitoring
+   */
+  async getAudioStorageStats(): Promise<{
+    totalFiles: number;
+    totalSize: number;
+    filesByType: Record<AudioType, number>;
+    expiringSoon: number; // files expiring in next 24 hours
+  }> {
+    try {
+      const objects = await this.listObjects({ prefix: 'audio/' });
+      const stats = {
+        totalFiles: objects.length,
+        totalSize: objects.reduce((sum, obj) => sum + obj.size, 0),
+        filesByType: { voiceover: 0, message: 0, preview: 0, system: 0 } as Record<AudioType, number>,
+        expiringSoon: 0
+      };
+
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      for (const obj of objects) {
+        // Categorize by path
+        if (obj.key.includes('/voiceovers/')) stats.filesByType.voiceover++;
+        else if (obj.key.includes('/messages/')) stats.filesByType.message++;
+        else if (obj.key.includes('/previews/')) stats.filesByType.preview++;
+        else if (obj.key.includes('/system/')) stats.filesByType.system++;
+
+        // Check expiry
+        try {
+          const metadata = await this.headObject(obj.key);
+          const expiresAtStr = metadata.Metadata?.['expires-at'];
+          if (expiresAtStr && expiresAtStr !== 'never') {
+            const expiresAt = new Date(expiresAtStr);
+            if (expiresAt <= tomorrow) {
+              stats.expiringSoon++;
+            }
+          }
+        } catch {
+          // Ignore metadata errors for stats
+        }
+      }
+
+      return stats;
+    } catch (error) {
+      console.error('[S3Audio] Failed to get storage stats:', error);
+      throw error;
+    }
   }
 }
 

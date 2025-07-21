@@ -36,14 +36,14 @@ export class WebSocketManager {
     this.io.use(async (socket: any, next) => {
       try {
         const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '');
-        
+
         if (!token) {
           return next(new Error('Authentication required'));
         }
 
         const payload = verifyAccessToken(token);
         const user = await User.findById(payload.userId).select('-password');
-        
+
         if (!user) {
           return next(new Error('User not found'));
         }

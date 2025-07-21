@@ -2,17 +2,21 @@ import express from 'express';
 import multer from 'multer';
 import { authenticateToken } from '../middleware/auth';
 import { AuthRequest } from '../utils/jwt';
-import AWS from 'aws-sdk';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
 import sharp from 'sharp';
+import { getStorageConfig } from '../config';
 
 const router = express.Router();
 
-// Configure AWS S3
-const s3 = new AWS.S3({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION || 'us-east-1'
+// Configure AWS S3 using centralized configuration
+const storageConfig = getStorageConfig();
+const s3 = new S3Client({
+  region: storageConfig.aws?.region || 'us-east-1',
+  credentials: {
+    accessKeyId: storageConfig.aws?.accessKeyId || '',
+    secretAccessKey: storageConfig.aws?.secretAccessKey || '',
+  },
 });
 
 // Configure multer for memory storage
@@ -58,20 +62,22 @@ router.post('/upload', authenticateToken, upload.single('avatar'), async (req: A
 
     // Upload to S3
     const uploadParams = {
-      Bucket: process.env.AWS_S3_BUCKET || 'reelspeed-assets',
+      Bucket: storageConfig.aws?.bucket || 'reelspeed-assets',
       Key: fileName,
       Body: processedBuffer,
       ContentType: 'image/jpeg',
-      ACL: 'public-read'
+      ACL: 'public-read' as const
     };
 
-    const result = await s3.upload(uploadParams).promise();
+    const command = new PutObjectCommand(uploadParams);
+    const result = await s3.send(command);
+    const location = `https://${uploadParams.Bucket}.s3.${storageConfig.aws?.region || 'us-east-1'}.amazonaws.com/${fileName}`;
 
     // Create avatar object
     const avatar = {
       id: avatarId,
       name: name,
-      url: result.Location,
+      url: location,
       userId: req.user.id,
       createdAt: new Date().toISOString(),
       isCustom: true
@@ -126,11 +132,12 @@ router.delete('/:avatarId', authenticateToken, async (req: AuthRequest, res) => 
     // 3. Remove from database
 
     const deleteParams = {
-      Bucket: process.env.AWS_S3_BUCKET || 'reelspeed-assets',
+      Bucket: storageConfig.aws?.bucket || 'reelspeed-assets',
       Key: `avatars/${req.user.id}/${avatarId}.jpg`
     };
 
-    await s3.deleteObject(deleteParams).promise();
+    const command = new DeleteObjectCommand(deleteParams);
+    await s3.send(command);
 
     res.json({
       success: true,

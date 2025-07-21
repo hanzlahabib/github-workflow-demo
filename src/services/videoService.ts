@@ -10,12 +10,12 @@ import fs from 'fs/promises';
 import { createWriteStream } from 'fs';
 
 export interface VideoGenerationRequest {
-  type: 'story' | 'reddit' | 'quiz' | 'educational';
+  type: 'story' | 'reddit' | 'quiz' | 'educational' | 'text-story';
   input: {
     text?: string;
     script?: string;
     title?: string;
-    config?: any; // Enhanced frontend config object
+    config?: any; // Enhanced frontend config object with all new settings
   };
   settings: {
     duration?: number;
@@ -76,9 +76,9 @@ export class VideoService {
     }
 
     console.log('[VideoService] Bundling Remotion project...');
-    
+
     const entryPoint = path.join(this.videoServicePath, 'src/index.ts');
-    
+
     // Check if entry point exists
     try {
       await fs.access(entryPoint);
@@ -101,17 +101,25 @@ export class VideoService {
   private getCompositionId(type: string): string {
     const compositionMap: { [key: string]: string } = {
       story: 'ChatReel', // Use ChatReel for story type with enhanced config support
-      reddit: 'RedditVideo', 
+      reddit: 'RedditVideo',
       quiz: 'QuizVideo',
       educational: 'EducationalVideo'
     };
-    
-    return compositionMap[type] || 'ChatReel';
+
+    const selectedComposition = compositionMap[type] || 'ChatReel';
+
+    console.log(`[VideoService] 🎬 COMPOSITION MAPPING DEBUG:`);
+    console.log(`[VideoService] Input type: "${type}"`);
+    console.log(`[VideoService] Available mappings:`, compositionMap);
+    console.log(`[VideoService] Selected composition: "${selectedComposition}"`);
+    console.log(`[VideoService] ✅ This should be "ChatReel" for enhanced config support`);
+
+    return selectedComposition;
   }
 
   public prepareInputProps(request: VideoGenerationRequest): any {
     const { input, settings, type } = request;
-    
+
     console.log('[VideoService] 🔍 prepareInputProps called with FULL request:', {
       type,
       requestKeys: Object.keys(request),
@@ -121,7 +129,7 @@ export class VideoService {
       configKeys: input.config ? Object.keys(input.config) : 'no config',
       settingsKeys: Object.keys(settings)
     });
-    
+
     // PRIORITY: Check if we have enhanced config from frontend
     if (input.config) {
       console.log('[VideoService] ✅ Enhanced config detected! Details:', {
@@ -139,7 +147,7 @@ export class VideoService {
           fontSize: input.config.chatOverlay.fontSize
         } : 'none'
       });
-      
+
       const transformedProps = this.transformEnhancedConfigToChatReel(input.config, settings);
       console.log('[VideoService] ✅ Transformed props for ChatReel:', {
         videoId: transformedProps.videoId,
@@ -149,17 +157,17 @@ export class VideoService {
         ui: transformedProps.conversation?.messageMetadata?.ui,
         hasOverlaySettings: !!transformedProps.overlaySettings
       });
-      
+
       return transformedProps;
     }
-    
+
     // ❌ NO FALLBACKS - Enhanced config is required
     console.error('[VideoService] ❌ CRITICAL: No enhanced config provided!', {
       hasInputConfig: !!input.config,
       inputKeys: Object.keys(input),
       inputText: input.text?.substring(0, 100) + '...'
     });
-    
+
     throw new Error('Enhanced config is required for video generation. Legacy text parsing has been removed. Please use generateVideoFromConfig() from the frontend.');
   }
 
@@ -184,27 +192,28 @@ export class VideoService {
       background: config.background,
       hasChatOverlay: !!config.chatOverlay
     });
-    
+
     // Direct template passthrough - ChatReel now supports all frontend templates
     const templateToUIMap: { [key: string]: string } = {
       // Modern themes
       'modern-dark': 'modern-dark',
       'modern-light': 'modern-light',
-      
-      // iOS/iMessage themes  
+
+      // iOS/iMessage themes
       'ios-style': 'ios-style',
       'ios-light': 'ios-light',
       'ios-dark': 'ios-dark',
-      
+
       // Instagram themes
       'instagram-dm': 'instagram-dm',
-      'instagram-light': 'instagram-light', 
+      'instagram-light': 'instagram-light',
       'instagram-dark': 'instagram-dark',
-      
+
       // WhatsApp themes
       'whatsapp-light': 'whatsapp-light',
       'whatsapp-dark': 'whatsapp-dark',
-      
+      'whatsapp-white': 'whatsapp-white',
+
       // Other platforms
       'telegram': 'telegram',
       'discord-style': 'discord-style',
@@ -249,7 +258,7 @@ export class VideoService {
         text: config.messages[0].text?.substring(0, 50) + '...'
       } : 'none'
     });
-    
+
     const processedMessages = config.messages.map((msg: any, index: number) => {
       const processed = {
         id: msg.id,
@@ -264,12 +273,12 @@ export class VideoService {
         soundEffectDuration: 0,
         audioUrl: msg.audioUrl || ''
       };
-      
+
       console.log(`[VideoService] Message ${index + 1}:`, {
         original: { sender: msg.sender, text: msg.text?.substring(0, 30) + '...' },
         transformed: { from: processed.from, text: processed.text?.substring(0, 30) + '...' }
       });
-      
+
       return processed;
     });
 
@@ -278,7 +287,7 @@ export class VideoService {
     const rightPersonName = config.people.right?.name || 'Person B';
     const leftPersonAvatar = config.people.left?.avatar?.url || '';
     const rightPersonAvatar = config.people.right?.avatar?.url || '';
-    
+
     console.log('[VideoService] Using user-provided names:', {
       left: leftPersonName,
       right: rightPersonName,
@@ -296,30 +305,30 @@ export class VideoService {
         username: leftPersonName, // Use actual user-provided name
         pfp: leftPersonAvatar, // Use actual user-provided avatar
         darkMode: config.template?.includes('dark') || false,
-        unreadMessages: '0',
+        unreadMessages: (config.videoSettings?.unreadMessagesCount || 0).toString(),
         radiusValue: config.chatOverlay?.borderRadius || 18,
-        playbackRate1: 1.1,
-        playbackRate2: 1.1,
+        playbackRate1: config.audioSettings?.voicePlaybackRate || 1.1,
+        playbackRate2: config.audioSettings?.voicePlaybackRate || 1.1,
         ui: templateToUIMap[config.template] || config.template || 'modern-light',
         opacity: config.chatOverlay?.opacity || 100,
-        greenScreen: false,
-        isBrainrot: false
+        greenScreen: config.videoSettings?.greenScreen || false,
+        isBrainrot: config.videoSettings?.brainrotMode || false
       },
       voice1Settings: {
         selectedVoiceId: config.people?.left?.voiceId || 'voice1',
-        stability: 50,
-        similarity: 75,
-        playbackRate: 1.1,
-        pitch: 1
+        stability: config.audioSettings?.voiceStability || 50,
+        similarity: config.audioSettings?.voiceSimilarity || 75,
+        playbackRate: config.audioSettings?.voicePlaybackRate || 1.1,
+        pitch: config.audioSettings?.voicePitch || 1
       },
       voice2Settings: {
         selectedVoiceId: config.people?.right?.voiceId || 'voice2',
-        stability: 50,
-        similarity: 75,
-        playbackRate: 1.1,
-        pitch: 1
+        stability: config.audioSettings?.voiceStability || 50,
+        similarity: config.audioSettings?.voiceSimilarity || 75,
+        playbackRate: config.audioSettings?.voicePlaybackRate || 1.1,
+        pitch: config.audioSettings?.voicePitch || 1
       },
-      messageDelay: 0
+      messageDelay: config.animationSettings?.messageDelay || 0
     };
 
     console.log('[VideoService] Created ChatReel conversation:', {
@@ -328,30 +337,149 @@ export class VideoService {
       ui: conversation.messageMetadata.ui
     });
 
-    // Return ChatReel composition props
+    // Return ChatReel composition props with ALL dynamic settings
     const chatReelProps = {
       videoId: `enhanced_${Date.now()}`,
       conversation: conversation,
-      enableAudio: true,
-      masterVolume: 0.8,
-      showNotifications: true,
-      showTypingIndicators: true,
-      showMessageAnimations: true,
+      enableAudio: config.audioSettings?.enableAudio ?? true,
+      masterVolume: (config.audioSettings?.masterVolume ?? 80) / 100, // Convert 0-100 to 0-1
+      showNotifications: config.animationSettings?.showNotifications ?? true,
+      showTypingIndicators: config.animationSettings?.showTypingIndicators ?? true,
+      showMessageAnimations: config.animationSettings?.showMessageAnimations ?? true,
+      baseDelay: config.animationSettings?.baseDelay ?? 1000,
+      duration: config.videoSettings?.duration ?? 30,
+
       // Pass overlay settings to composition
-      overlaySettings: config.chatOverlay
+      overlaySettings: {
+        ...config.chatOverlay,
+        colorCustomization: config.colorCustomization
+      },
+
+      // NEW: Pass all advanced customization settings
+      notificationSettings: config.notificationSettings || {
+        showNotifications: true,
+        notificationStyle: 'ios',
+        soundEnabled: true,
+        vibrationEnabled: true,
+        animationType: 'slide'
+      },
+
+      chatSimulationSettings: config.chatSimulationSettings || {
+        showReadReceipts: true,
+        showTypingIndicators: true,
+        showTimestamps: false,
+        enableReactions: false,
+        simulateDelay: true,
+        showOnlineStatus: true,
+        showLastSeen: true,
+        enableMessageSearch: false,
+        showMessageStatus: true,
+        simulateNetworkDelay: false
+      },
+
+      visualEffectsSettings: config.visualEffectsSettings || {
+        screenShake: false,
+        particleEffects: false,
+        glitchEffects: false,
+        messageGlow: false,
+        pulseEffects: true,
+        backgroundBlur: false,
+        neonEffects: false,
+        matrixRain: false,
+        fireEffects: false,
+        hologramMode: false
+      },
+
+      // Caption settings for subtitles/captions
+      captionSettings: config.captions || {
+        enabled: false,
+        autoGenerate: true,
+        language: 'en',
+        style: {
+          fontSize: 16,
+          fontFamily: 'Arial',
+          fontColor: '#FFFFFF',
+          backgroundColor: '#000000',
+          backgroundOpacity: 0.7,
+          position: 'bottom',
+          animation: 'fade'
+        },
+        lines: []
+      },
+
+      // Advanced settings for special modes
+      advancedSettings: config.advancedSettings || {
+        greenScreenMode: false,
+        brainrotMode: false,
+        highQualityMode: true,
+        memoryOptimization: false,
+        parallelRendering: false
+      },
+
+      // Enhanced animation settings
+      enhancedAnimationSettings: config.animationSettings || {
+        messageAnimationType: 'fade',
+        animationSpeed: 'normal',
+        transitionDuration: 300,
+        enablePhysics: false,
+        bounceIntensity: 1.0,
+        swipeAnimations: false,
+        parallaxEffect: false,
+        morphingText: false
+      }
     };
 
-    console.log('[VideoService] Final ChatReel props:', {
+    console.log('[VideoService] Final ChatReel props with ALL settings:', {
       videoId: chatReelProps.videoId,
       conversationUsername: chatReelProps.conversation.messageMetadata.username,
-      overlaySettings: chatReelProps.overlaySettings
+      enableAudio: chatReelProps.enableAudio,
+      masterVolume: chatReelProps.masterVolume,
+      showNotifications: chatReelProps.showNotifications,
+      showTypingIndicators: chatReelProps.showTypingIndicators,
+      showMessageAnimations: chatReelProps.showMessageAnimations,
+      baseDelay: chatReelProps.baseDelay,
+      duration: chatReelProps.duration,
+      overlaySettings: chatReelProps.overlaySettings,
+      // NEW: Log all advanced settings
+      notificationSettings: {
+        style: chatReelProps.notificationSettings.notificationStyle,
+        soundEnabled: chatReelProps.notificationSettings.soundEnabled,
+        animationType: chatReelProps.notificationSettings.animationType
+      },
+      chatSimulationSettings: {
+        readReceipts: chatReelProps.chatSimulationSettings.showReadReceipts,
+        typingIndicators: chatReelProps.chatSimulationSettings.showTypingIndicators,
+        onlineStatus: chatReelProps.chatSimulationSettings.showOnlineStatus,
+        reactions: chatReelProps.chatSimulationSettings.enableReactions
+      },
+      visualEffectsSettings: {
+        screenShake: chatReelProps.visualEffectsSettings.screenShake,
+        messageGlow: chatReelProps.visualEffectsSettings.messageGlow,
+        particleEffects: chatReelProps.visualEffectsSettings.particleEffects,
+        neonEffects: chatReelProps.visualEffectsSettings.neonEffects
+      },
+      captionSettings: {
+        enabled: chatReelProps.captionSettings.enabled,
+        language: chatReelProps.captionSettings.language,
+        position: chatReelProps.captionSettings.style.position
+      },
+      advancedSettings: {
+        greenScreen: chatReelProps.advancedSettings.greenScreenMode,
+        brainrot: chatReelProps.advancedSettings.brainrotMode,
+        highQuality: chatReelProps.advancedSettings.highQualityMode
+      },
+      enhancedAnimationSettings: {
+        type: chatReelProps.enhancedAnimationSettings.messageAnimationType,
+        speed: chatReelProps.enhancedAnimationSettings.animationSpeed,
+        physics: chatReelProps.enhancedAnimationSettings.enablePhysics
+      }
     });
 
     return chatReelProps;
   }
 
   async generateVideo(
-    request: VideoGenerationRequest, 
+    request: VideoGenerationRequest,
     onProgress?: ProgressCallback
   ): Promise<VideoGenerationResult> {
     const startTime = Date.now();
@@ -384,8 +512,15 @@ export class VideoService {
       const compositionId = this.getCompositionId(request.type);
       const inputProps = this.prepareInputProps(request);
 
-      console.log(`[VideoService] Using composition: ${compositionId}`);
-      console.log(`[VideoService] Input props:`, inputProps);
+      console.log(`[VideoService] 🎯 COMPOSITION SELECTION DEBUG:`);
+      console.log(`[VideoService] Request type: "${request.type}"`);
+      console.log(`[VideoService] Selected composition ID: "${compositionId}"`);
+      console.log(`[VideoService] Should be "ChatReel" for story type`);
+      console.log(`[VideoService] Input props overview:`, {
+        hasConversation: !!inputProps.conversation,
+        hasOverlaySettings: !!inputProps.overlaySettings,
+        propsKeys: Object.keys(inputProps)
+      });
 
       const composition = await selectComposition({
         serveUrl: bundleLocation,
@@ -465,7 +600,7 @@ export class VideoService {
 
     } catch (error) {
       console.error(`[VideoService] Generation failed:`, error);
-      
+
       // Clean up partial files
       try {
         await fs.unlink(outputPath);
@@ -522,7 +657,7 @@ export class VideoService {
       inputProps: this.prepareInputProps(request),
       composition: this.getCompositionId(request.type),
       codec: 'h264' as const,
-      region: process.env.AWS_REGION || 'us-east-1'
+      region: 'us-east-1' // Will be configured via centralized config
     };
   }
 }

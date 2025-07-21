@@ -1,62 +1,26 @@
-import { ElevenLabs } from '@elevenlabs/elevenlabs-js';
+// External dependencies
+import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
+
+// Node.js built-in modules
 import fs from 'fs';
 import path from 'path';
 
-export interface ElevenLabsConfig {
-  apiKey: string;
-  baseUrl?: string;
-  maxRetries?: number;
-  timeout?: number;
-}
+// Types
+import type {
+  ElevenLabsConfig,
+  Voice,
+  TextToSpeechRequest,
+  AudioGenerationResponse,
+  VoicesListResponse,
+  SupportedLanguage
+} from '../types/services';
 
-export interface Voice {
-  voice_id: string;
-  name: string;
-  samples?: Array<{
-    sample_id: string;
-    file_name: string;
-    mime_type: string;
-    size_bytes: number;
-    hash: string;
-  }>;
-  category?: string;
-  labels: Record<string, string>;
-  description?: string;
-  preview_url?: string;
-  available_for_tiers: string[];
-  settings?: any;
-  high_quality_base_model_ids: string[];
-  safety_control?: string;
-}
+// Services
+import { getCacheService, CacheKeys, CacheTTL } from './cache';
+import { IElevenLabsService } from './elevenlabs.interface';
+import { BaseService } from './BaseService';
 
-export interface TextToSpeechRequest {
-  text: string;
-  voice_id: string;
-  voice_settings?: any;
-  language_code?: string;
-  model_id?: string;
-  output_format?: string;
-}
-
-export interface AudioGenerationResponse {
-  audio_data: Buffer;
-  content_type: string;
-  filename: string;
-  duration_ms?: number;
-}
-
-export interface VoicesListResponse {
-  voices: Voice[];
-  has_more: boolean;
-  last_sort_id?: string;
-}
-
-export interface SupportedLanguage {
-  language_id: string;
-  name: string;
-  native_name: string;
-  accent_support: boolean;
-}
+// Types are now imported from centralized types
 
 // Predefined voices for different languages and use cases
 export const VOICE_PRESETS = {
@@ -126,69 +90,119 @@ export const SUPPORTED_LANGUAGES: SupportedLanguage[] = [
   { language_id: 'ka', name: 'Georgian', native_name: 'ქართული', accent_support: false },
 ];
 
-class ElevenLabsService {
+class ElevenLabsService extends BaseService implements IElevenLabsService {
   private client: any;
-  private maxRetries: number;
-  private timeout: number;
+  private test: any;
 
   constructor(config: ElevenLabsConfig) {
-    this.client = new (ElevenLabs as any)({
+    super({
+      name: 'ElevenLabs',
+      version: '1.0.0',
+      ...config
+    });
+
+    this.validateConfig(config);
+
+    console.log('🔍 ElevenLabs config:', config);
+    this.client = new ElevenLabsClient({
       apiKey: config.apiKey,
     });
-    this.maxRetries = config.maxRetries || 3;
-    this.timeout = config.timeout || 30000;
+    this.test = config;
   }
 
-  async getVoices(): Promise<VoicesListResponse> {
-    try {
-      console.log('[ElevenLabs] Fetching available voices');
-      
-      const response = await this.client.voices.getAll();
-      
-      // Transform SDK response to our interface
-      const voices: Voice[] = response.voices.map((voice: any) => ({
-        voice_id: voice.voice_id,
-        name: voice.name,
-        samples: voice.samples,
-        category: voice.category,
-        labels: voice.labels || {},
-        description: voice.description,
-        preview_url: voice.preview_url,
-        available_for_tiers: voice.available_for_tiers || [],
-        settings: voice.settings,
-        high_quality_base_model_ids: voice.high_quality_base_model_ids || [],
-        safety_control: voice.safety_control,
-      }));
-
-      return {
-        voices,
-        has_more: false, // SDK doesn't provide pagination info
-      };
-    } catch (error) {
-      console.error('[ElevenLabs] Failed to fetch voices:', error);
-      throw new Error(`Failed to fetch voices: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  protected validateConfig(config: ElevenLabsConfig): void {
+    if (!config.apiKey) {
+      throw new Error('ElevenLabs API key is required');
     }
+
+    if (config.apiKey.length < 10) {
+      throw new Error('Invalid ElevenLabs API key format');
+    }
+  }
+
+
+  async getVoices(): Promise<VoicesListResponse> {
+    const result = await this.executeWithErrorHandling(
+      async () => {
+        const response = await this.client.voices.getAll();
+        console.log('🔍 ElevenLabs voices response:', response);
+        return {
+          voices: response.voices,
+          has_more: false, // SDK doesn't provide pagination info
+        };
+      },
+      'fetch voices list',
+      {
+        useCache: true,
+        cacheKey: CacheKeys.VOICES_LIST,
+        cacheTTL: CacheTTL.VOICES_LIST,
+        retryOptions: {
+          retryCondition: (error) => {
+            return error.status === 429 || (error.status >= 500 && error.status < 600);
+          }
+        }
+      }
+    );
+
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+
+    return result.data!;
   }
 
   async getVoice(voiceId: string): Promise<Voice> {
     try {
-      console.log(`[ElevenLabs] Fetching voice details for: ${voiceId}`);
-      
-      const voice = await this.client.voices.get(voiceId);
-      
-      return {
-        voice_id: voice.voice_id,
-        name: voice.name,
-        samples: voice.samples,
-        category: voice.category,
-        labels: voice.labels || {},
-        description: voice.description,
-        preview_url: voice.preview_url,
-        available_for_tiers: voice.available_for_tiers || [],
-        settings: voice.settings,
-        high_quality_base_model_ids: voice.high_quality_base_model_ids || [],
-        safety_control: voice.safety_control,
-      };
+      // Try to get cache service
+      let cacheService;
+      try {
+        cacheService = getCacheService();
+      } catch {
+        console.log('[ElevenLabs] Cache service not available, fetching voice without cache');
+      }
+
+      if (cacheService) {
+        return await cacheService.cacheWrapper(
+          CacheKeys.VOICE_DETAIL(voiceId),
+          async () => {
+            console.log(`[ElevenLabs] Fetching fresh voice details for: ${voiceId}`);
+            const voice = await this.client.voices.get(voiceId);
+
+            return {
+              voice_id: voice.voice_id,
+              name: voice.name,
+              samples: voice.samples,
+              category: voice.category,
+              labels: voice.labels || {},
+              description: voice.description,
+              preview_url: voice.preview_url,
+              available_for_tiers: voice.available_for_tiers || [],
+              settings: voice.settings,
+              high_quality_base_model_ids: voice.high_quality_base_model_ids || [],
+              safety_control: voice.safety_control,
+            };
+          },
+          CacheTTL.VOICE_DETAIL
+        );
+      } else {
+        // Fallback to direct API call
+        console.log(`[ElevenLabs] Fetching voice details for: ${voiceId} (no cache)`);
+        const voice = await this.client.voices.get(voiceId);
+
+        return {
+          voice_id: voice.voice_id,
+          name: voice.name,
+          samples: voice.samples,
+          category: voice.category,
+          labels: voice.labels || {},
+          description: voice.description,
+          preview_url: voice.preview_url,
+          available_for_tiers: voice.available_for_tiers || [],
+          settings: voice.settings,
+          high_quality_base_model_ids: voice.high_quality_base_model_ids || [],
+          safety_control: voice.safety_control,
+        };
+      }
     } catch (error) {
       console.error('[ElevenLabs] Failed to fetch voice details:', error);
       throw new Error(`Failed to fetch voice details: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -198,19 +212,21 @@ class ElevenLabsService {
   async generateSpeech(request: TextToSpeechRequest): Promise<AudioGenerationResponse> {
     try {
       console.log(`[ElevenLabs] Generating speech for voice: ${request.voice_id}`);
-      
-      const audioGenerator = await this.client.textToSpeech.convert({
-        voice_id: request.voice_id,
-        text: request.text,
-        model_id: request.model_id || 'eleven_multilingual_v2',
-        voice_settings: request.voice_settings || {
-          stability: 0.5,
-          similarity_boost: 0.8,
-          style: 0.0,
-          use_speaker_boost: true,
-        },
-        output_format: request.output_format as any || 'mp3_44100_128',
-      });
+
+      const audioGenerator = await this.client.textToSpeech.convert(
+        request.voice_id,
+        {
+          text: request.text,
+          model_id: request.model_id || 'eleven_multilingual_v2',
+          voice_settings: request.voice_settings || {
+            stability: 0.5,
+            similarity_boost: 0.8,
+            style: 0.0,
+            use_speaker_boost: true,
+          },
+          output_format: request.output_format || 'mp3_44100_128',
+        }
+      );
 
       // Convert async generator to buffer
       const chunks: Buffer[] = [];
@@ -233,22 +249,24 @@ class ElevenLabsService {
     }
   }
 
-  async generateSpeechStream(request: TextToSpeechRequest): Promise<AsyncGenerator<Buffer, void, unknown>> {
+  async *generateSpeechStream(request: TextToSpeechRequest): AsyncGenerator<Buffer, void, unknown> {
     try {
       console.log(`[ElevenLabs] Generating speech stream for voice: ${request.voice_id}`);
-      
-      return this.client.textToSpeech.convert({
-        voice_id: request.voice_id,
-        text: request.text,
-        model_id: request.model_id || 'eleven_multilingual_v2',
-        voice_settings: request.voice_settings || {
-          stability: 0.5,
-          similarity_boost: 0.8,
-          style: 0.0,
-          use_speaker_boost: true,
-        },
-        output_format: request.output_format as any || 'mp3_44100_128',
-      });
+
+      return this.client.textToSpeech.convert(
+        request.voice_id,
+        {
+          text: request.text,
+          model_id: request.model_id || 'eleven_multilingual_v2',
+          voice_settings: request.voice_settings || {
+            stability: 0.5,
+            similarity_boost: 0.8,
+            style: 0.0,
+            use_speaker_boost: true,
+          },
+          output_format: request.output_format || 'mp3_44100_128',
+        }
+      );
     } catch (error) {
       console.error('[ElevenLabs] Speech stream generation failed:', error);
       throw new Error(`Speech stream generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -264,7 +282,7 @@ class ElevenLabsService {
 
       fs.writeFileSync(filePath, audioData);
       console.log(`[ElevenLabs] Audio saved to: ${filePath}`);
-      
+
       return filePath;
     } catch (error) {
       console.error('[ElevenLabs] Failed to save audio file:', error);
@@ -274,7 +292,7 @@ class ElevenLabsService {
 
   getSuggestedVoice(language: string, gender: 'male' | 'female' = 'female', style: 'professional' | 'casual' | 'energetic' | 'warm' = 'professional'): string {
     const languageVoices = VOICE_PRESETS[language as keyof typeof VOICE_PRESETS];
-    
+
     if (!languageVoices) {
       // Fallback to English if language not supported
       return VOICE_PRESETS.english.female.professional;
@@ -349,10 +367,28 @@ class ElevenLabsService {
 
   async getVoiceSettings(voiceId: string): Promise<any> {
     try {
-      console.log(`[ElevenLabs] Fetching voice settings for: ${voiceId}`);
-      
-      const settings = await this.client.voices.getSettings(voiceId);
-      return settings;
+      // Try to get cache service
+      let cacheService;
+      try {
+        cacheService = getCacheService();
+      } catch {
+        console.log('[ElevenLabs] Cache service not available, fetching voice settings without cache');
+      }
+
+      if (cacheService) {
+        return await cacheService.cacheWrapper(
+          CacheKeys.VOICE_SETTINGS(voiceId),
+          async () => {
+            console.log(`[ElevenLabs] Fetching fresh voice settings for: ${voiceId}`);
+            return await this.client.voices.getSettings(voiceId);
+          },
+          CacheTTL.VOICE_SETTINGS
+        );
+      } else {
+        // Fallback to direct API call
+        console.log(`[ElevenLabs] Fetching voice settings for: ${voiceId} (no cache)`);
+        return await this.client.voices.getSettings(voiceId);
+      }
     } catch (error) {
       console.error('[ElevenLabs] Failed to fetch voice settings:', error);
       throw new Error(`Failed to fetch voice settings: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -362,8 +398,18 @@ class ElevenLabsService {
   async updateVoiceSettings(voiceId: string, settings: any): Promise<any> {
     try {
       console.log(`[ElevenLabs] Updating voice settings for: ${voiceId}`);
-      
+
       const updatedSettings = await this.client.voices.editSettings(voiceId, settings);
+
+      // Invalidate cache for this voice's settings
+      try {
+        const cacheService = getCacheService();
+        await cacheService.delete(CacheKeys.VOICE_SETTINGS(voiceId));
+        console.log(`[ElevenLabs] Cache invalidated for voice settings: ${voiceId}`);
+      } catch {
+        // Cache service not available, continue without invalidation
+      }
+
       return updatedSettings;
     } catch (error) {
       console.error('[ElevenLabs] Failed to update voice settings:', error);
@@ -371,34 +417,132 @@ class ElevenLabsService {
     }
   }
 
-  async uploadToS3(audioBuffer: Buffer, key: string): Promise<string> {
+  /**
+   * Upload audio to S3 using the new environment-aware storage strategy
+   */
+  async uploadAudioToS3(
+    audioBuffer: Buffer,
+    type: 'voiceover' | 'message' | 'preview',
+    userId: string,
+    metadata: {
+      voiceId?: string;
+      messageId?: string;
+      duration?: number;
+      originalText?: string;
+    } = {}
+  ): Promise<{ url: string; key: string; expiresAt?: Date }> {
     try {
-      // This should integrate with your S3 service
-      // For now, return a mock URL
-      const mockUrl = `https://your-bucket.s3.amazonaws.com/${key}`;
-      console.log(`[ElevenLabs] Mock upload to S3: ${mockUrl}`);
-      return mockUrl;
+      console.log(`[ElevenLabs] Uploading ${type} audio to S3 for user: ${userId}`);
+
+      // Import S3 service
+      const { getS3Service } = await import('./s3');
+      const s3Service = getS3Service();
+
+      // Use new audio-specific upload method
+      const uploadResult = await s3Service.uploadAudioWithMetadata(audioBuffer, type, userId, {
+        id: metadata.messageId || metadata.voiceId,
+        voiceId: metadata.voiceId,
+        duration: metadata.duration,
+        originalFilename: `${type}_${Date.now()}.mp3`,
+        originalText: metadata.originalText ? metadata.originalText.substring(0, 100) : undefined
+      });
+
+      console.log(`[ElevenLabs] ${type} audio uploaded successfully:`, {
+        key: uploadResult.key,
+        bucket: uploadResult.bucket,
+        expiresAt: uploadResult.expiresAt
+      });
+
+      return {
+        url: uploadResult.url,
+        key: uploadResult.key,
+        expiresAt: uploadResult.expiresAt
+      };
     } catch (error) {
-      console.error('[ElevenLabs] Failed to upload to S3:', error);
-      throw new Error(`Failed to upload to S3: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error(`[ElevenLabs] Failed to upload ${type} audio to S3:`, error);
+
+      // Fallback to local file system if S3 fails
+      try {
+        console.log(`[ElevenLabs] S3 upload failed, falling back to local storage`);
+        const fs = await import('fs');
+        const path = await import('path');
+
+        // Create uploads directory if it doesn't exist
+        const uploadsDir = path.resolve('./uploads/audio');
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+
+        // Save to local file system with new naming convention
+        const timestamp = Date.now();
+        const fileName = `${type}_${userId}_${timestamp}_${metadata.voiceId || 'unknown'}.mp3`;
+        const filePath = path.join(uploadsDir, fileName);
+        fs.writeFileSync(filePath, audioBuffer);
+
+        // Return local URL
+        const localUrl = `/uploads/audio/${fileName}`;
+        console.log(`[ElevenLabs] ${type} audio saved locally: ${localUrl}`);
+
+        return {
+          url: localUrl,
+          key: `local/${fileName}`,
+          expiresAt: undefined // Local files don't auto-expire
+        };
+      } catch (fallbackError) {
+        console.error('[ElevenLabs] Local fallback also failed:', fallbackError);
+        throw new Error(`Failed to upload ${type} audio: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
     }
   }
 
-  async testConnection(): Promise<boolean> {
-    try {
-      await this.getVoices();
-      return true;
-    } catch (error) {
-      console.error('[ElevenLabs] Connection test failed:', error);
-      return false;
+  /**
+   * Legacy method for backward compatibility
+   * @deprecated Use uploadAudioToS3 instead
+   */
+  async uploadToS3(audioBuffer: Buffer, legacyKey: string): Promise<string> {
+    console.warn('[ElevenLabs] uploadToS3 is deprecated, inferring type from legacy key:', legacyKey);
+
+    // Infer type and userId from legacy key format
+    let type: 'voiceover' | 'message' | 'preview' = 'voiceover';
+    let userId = 'unknown';
+
+    if (legacyKey.includes('voiceovers/')) {
+      type = 'voiceover';
+      const match = legacyKey.match(/voiceovers\/([^\/]+)\//);
+      userId = match ? match[1] : 'unknown';
+    } else if (legacyKey.includes('messages/')) {
+      type = 'message';
+      const match = legacyKey.match(/messages\/([^\/]+)\//);
+      userId = match ? match[1] : 'unknown';
+    } else if (legacyKey.includes('preview')) {
+      type = 'preview';
     }
+
+    const result = await this.uploadAudioToS3(audioBuffer, type, userId, {
+      originalText: `Legacy upload: ${legacyKey}`
+    });
+
+    return result.url;
+  }
+
+  public async testConnection(): Promise<boolean> {
+    const result = await this.executeWithErrorHandling(
+      async () => {
+        await this.getVoices();
+        return true;
+      },
+      'test connection',
+      { useCache: false }
+    );
+
+    return result.success;
   }
 
   // New method for generating speech for individual messages
   async generateMessageSpeech(messageText: string, voiceId: string, messageId: string): Promise<AudioGenerationResponse> {
     try {
       console.log(`[ElevenLabs] Generating speech for message ${messageId} with voice: ${voiceId}`);
-      
+
       const request: TextToSpeechRequest = {
         text: messageText,
         voice_id: voiceId,
@@ -407,10 +551,10 @@ class ElevenLabsService {
       };
 
       const response = await this.generateSpeech(request);
-      
+
       // Update filename to include message ID
       response.filename = `message_${messageId}_${Date.now()}.mp3`;
-      
+
       return response;
     } catch (error) {
       console.error(`[ElevenLabs] Failed to generate speech for message ${messageId}:`, error);
@@ -421,7 +565,7 @@ class ElevenLabsService {
   // Batch generate speech for multiple messages
   async generateBatchSpeech(messages: Array<{ id: string; text: string; voiceId: string }>): Promise<Array<{ messageId: string; audioResponse: AudioGenerationResponse }>> {
     const results: Array<{ messageId: string; audioResponse: AudioGenerationResponse }> = [];
-    
+
     for (const message of messages) {
       try {
         const audioResponse = await this.generateMessageSpeech(message.text, message.voiceId, message.id);
@@ -434,22 +578,29 @@ class ElevenLabsService {
         // Continue with other messages even if one fails
       }
     }
-    
+
     return results;
   }
 }
 
 // Singleton instance
-let elevenLabsInstance: ElevenLabsService | null = null;
+let elevenLabsInstance: IElevenLabsService | null = null;
 
-export const createElevenLabsService = (config: ElevenLabsConfig): ElevenLabsService => {
+import MockElevenLabsService from './elevenlabs.mock';
+import { useMockServices } from '../config';
+
+export const createElevenLabsService = (config: ElevenLabsConfig): IElevenLabsService => {
   if (!elevenLabsInstance) {
-    elevenLabsInstance = new ElevenLabsService(config);
+    if (useMockServices()) {
+      elevenLabsInstance = new MockElevenLabsService(config);
+    } else {
+      elevenLabsInstance = new ElevenLabsService(config);
+    }
   }
   return elevenLabsInstance;
 };
 
-export const getElevenLabsService = (): ElevenLabsService => {
+export const getElevenLabsService = (): IElevenLabsService => {
   if (!elevenLabsInstance) {
     throw new Error('ElevenLabs service not initialized. Call createElevenLabsService first.');
   }

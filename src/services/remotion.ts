@@ -293,13 +293,13 @@ class RemotionService {
 
   async renderVideo(request: RenderRequest, onProgress?: (progress: RenderProgress) => void): Promise<RenderResult> {
     const renderId = this.generateRenderId();
-    
+
     try {
       console.log(`[Remotion] Starting render: ${renderId} - ${request.compositionId}`);
-      
+
       const startTime = Date.now();
       const outputPath = this.getOutputPath(request, renderId);
-      
+
       if (onProgress) {
         onProgress({
           phase: 'downloading',
@@ -310,7 +310,7 @@ class RemotionService {
 
       // Build render command
       const renderCommand = this.buildRenderCommand(request, outputPath);
-      
+
       if (onProgress) {
         onProgress({
           phase: 'rendering',
@@ -321,7 +321,7 @@ class RemotionService {
 
       // Execute render
       const result = await this.executeRender(renderCommand, onProgress);
-      
+
       if (!result.success) {
         throw new Error(result.error || 'Render failed');
       }
@@ -357,7 +357,7 @@ class RemotionService {
       return renderResult;
     } catch (error) {
       console.error(`[Remotion] Render failed: ${renderId}:`, error);
-      
+
       if (onProgress) {
         onProgress({
           phase: 'failed',
@@ -464,7 +464,7 @@ class RemotionService {
 
     try {
       console.log('[Remotion] Starting Lambda render');
-      
+
       // This would integrate with Remotion Lambda
       // For now, we'll fall back to local rendering
       console.warn('[Remotion] Lambda rendering not implemented yet, falling back to local');
@@ -490,7 +490,7 @@ class RemotionService {
   async getCompositions(): Promise<Array<{ id: string; width: number; height: number; fps: number; durationInFrames: number }>> {
     try {
       console.log('[Remotion] Getting available compositions');
-      
+
       // Execute remotion compositions command
       const output = execSync(`npx remotion compositions ${this.config.compositionsPath}`, {
         encoding: 'utf8',
@@ -593,7 +593,7 @@ class RemotionService {
             const current = parseInt(progressMatch[1]);
             const total = parseInt(progressMatch[2]);
             const progress = Math.round((current / total) * 80) + 10; // 10-90%
-            
+
             onProgress({
               phase: 'rendering',
               progress,
@@ -681,7 +681,7 @@ class RemotionService {
     try {
       // Test if Remotion CLI is available
       execSync('npx remotion --version', { stdio: 'ignore' });
-      
+
       // Test if compositions path exists
       if (!fs.existsSync(this.config.compositionsPath)) {
         console.error('[Remotion] Compositions path does not exist:', this.config.compositionsPath);

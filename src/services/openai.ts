@@ -1,10 +1,10 @@
 import OpenAI from 'openai';
+import { BaseService, ServiceConfig } from './BaseService';
+import { CacheKeys, CacheTTL } from './cache';
 
-export interface OpenAIConfig {
+export interface OpenAIConfig extends ServiceConfig {
   apiKey: string;
   organization?: string;
-  maxRetries?: number;
-  timeout?: number;
 }
 
 export interface ScriptGenerationRequest {
@@ -14,6 +14,7 @@ export interface ScriptGenerationRequest {
   language: string;
   tone?: 'casual' | 'professional' | 'humorous' | 'dramatic';
   targetAudience?: string;
+  platform?: 'tiktok' | 'youtube_shorts' | 'instagram_reels' | 'facebook_reels';
 }
 
 export interface ScriptGenerationResponse {
@@ -58,60 +59,91 @@ export interface QuizGenerationRequest {
   language: string;
 }
 
-class OpenAIService {
+class OpenAIService extends BaseService {
   private client: OpenAI;
-  private retryCount: number;
-  private timeout: number;
 
   constructor(config: OpenAIConfig) {
+    super({
+      name: 'OpenAI',
+      version: '1.0.0',
+      ...config
+    });
+
+    this.validateConfig(config);
+
     this.client = new OpenAI({
       apiKey: config.apiKey,
       organization: config.organization,
-      maxRetries: config.maxRetries || 3,
-      timeout: config.timeout || 60000,
+      maxRetries: this.maxRetries,
+      timeout: this.timeout,
     });
-    this.retryCount = config.maxRetries || 3;
-    this.timeout = config.timeout || 60000;
+  }
+
+  protected validateConfig(config: OpenAIConfig): void {
+    if (!config.apiKey) {
+      throw new Error('OpenAI API key is required');
+    }
+
+    if (config.apiKey.length < 10) {
+      throw new Error('Invalid OpenAI API key format');
+    }
   }
 
   async generateScript(request: ScriptGenerationRequest): Promise<ScriptGenerationResponse> {
-    try {
-      console.log(`[OpenAI] Generating ${request.videoType} script for topic: ${request.topic}`);
-      
-      const prompt = this.buildScriptPrompt(request);
-      
-      const response = await this.client.chat.completions.create({
-        model: 'gpt-4',
-        messages: [
-          {
-            role: 'system',
-            content: `You are an expert video script writer specializing in short-form content for social media platforms. You understand viral content patterns, audience psychology, and platform-specific requirements.`
-          },
-          {
-            role: 'user',
-            content: prompt
+    const cacheKey = CacheKeys.SCRIPT_GENERATION(request.topic, request.videoType, request.duration);
+
+    const result = await this.executeWithErrorHandling(
+      async () => {
+        const prompt = this.buildScriptPrompt(request);
+
+        const response = await this.client.chat.completions.create({
+          model: 'gpt-4',
+          messages: [
+            {
+              role: 'system',
+              content: `You are an expert video script writer specializing in short-form content for social media platforms. You understand viral content patterns, audience psychology, and platform-specific requirements.`
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 2000,
+        });
+
+        const content = response.choices[0]?.message?.content;
+        if (!content) {
+          throw new Error('No content generated from OpenAI');
+        }
+
+        return this.parseScriptResponse(content, request.duration);
+      },
+      `generate ${request.videoType} script for topic: ${request.topic}`,
+      {
+        useCache: true,
+        cacheKey,
+        cacheTTL: CacheTTL.SCRIPT_GENERATION,
+        retryOptions: {
+          retryCondition: (error) => {
+            // Retry on rate limiting or server errors
+            return error.status === 429 || (error.status >= 500 && error.status < 600);
           }
-        ],
-        temperature: 0.7,
-        max_tokens: 2000,
-      });
-
-      const content = response.choices[0]?.message?.content;
-      if (!content) {
-        throw new Error('No content generated from OpenAI');
+        }
       }
+    );
 
-      return this.parseScriptResponse(content, request.duration);
-    } catch (error) {
-      console.error('[OpenAI] Script generation failed:', error);
-      throw new Error(`Script generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    if (!result.success) {
+      throw new Error(result.error);
     }
+
+    return result.data!;
   }
 
   async optimizeContent(request: ContentOptimizationRequest): Promise<string> {
     try {
       console.log(`[OpenAI] Optimizing content for ${request.platform} with goal: ${request.goal}`);
-      
+
       const prompt = `
         Optimize the following content for ${request.platform} to maximize ${request.goal}:
         
@@ -158,7 +190,7 @@ class OpenAIService {
   async analyzeTrends(request: TrendAnalysisRequest): Promise<string[]> {
     try {
       console.log(`[OpenAI] Analyzing trends for niche: ${request.niche}`);
-      
+
       const prompt = `
         Analyze current trending topics and content ideas for the ${request.niche} niche within the ${request.timeframe} timeframe.
         ${request.region ? `Focus on trends relevant to ${request.region}.` : ''}
@@ -209,7 +241,7 @@ class OpenAIService {
   async summarizeRedditContent(redditText: string, maxLength: number = 100): Promise<string> {
     try {
       console.log('[OpenAI] Summarizing Reddit content');
-      
+
       const prompt = `
         Summarize the following Reddit post/comment for a short video script (max ${maxLength} words):
         
@@ -249,7 +281,7 @@ class OpenAIService {
   async generateQuizQuestions(request: QuizGenerationRequest): Promise<QuizQuestion[]> {
     try {
       console.log(`[OpenAI] Generating ${request.questionCount} quiz questions for topic: ${request.topic}`);
-      
+
       const prompt = `
         Generate ${request.questionCount} ${request.difficulty} quiz questions about "${request.topic}" in ${request.language}.
         
@@ -353,7 +385,7 @@ class OpenAIService {
     // Fallback manual parsing if JSON parsing fails
     const questions: QuizQuestion[] = [];
     const lines = content.split('\n').filter(line => line.trim().length > 0);
-    
+
     for (let i = 0; i < Math.min(count, 5); i++) {
       questions.push({
         question: `Question ${i + 1}: Based on the topic`,
@@ -363,22 +395,25 @@ class OpenAIService {
         difficulty: 'medium'
       });
     }
-    
+
     return questions;
   }
 
-  async testConnection(): Promise<boolean> {
-    try {
-      await this.client.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [{ role: 'user', content: 'Hello' }],
-        max_tokens: 5,
-      });
-      return true;
-    } catch (error) {
-      console.error('[OpenAI] Connection test failed:', error);
-      return false;
-    }
+  public async testConnection(): Promise<boolean> {
+    const result = await this.executeWithErrorHandling(
+      async () => {
+        await this.client.chat.completions.create({
+          model: 'gpt-3.5-turbo',
+          messages: [{ role: 'user', content: 'Hello' }],
+          max_tokens: 5,
+        });
+        return true;
+      },
+      'test connection',
+      { useCache: false }
+    );
+
+    return result.success;
   }
 }
 

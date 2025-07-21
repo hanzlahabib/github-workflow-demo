@@ -182,7 +182,7 @@ class WhisperService {
   async transcribeAudio(request: TranscriptionRequest): Promise<TranscriptionResponse> {
     try {
       console.log('[Whisper] Starting audio transcription');
-      
+
       // Prepare the audio file
       let audioFile: File;
       if (typeof request.audioFile === 'string') {
@@ -235,7 +235,7 @@ class WhisperService {
   ): Promise<Caption[]> {
     try {
       console.log('[Whisper] Generating captions');
-      
+
       const defaultOptions: Required<CaptionOptions> = {
         maxLineLength: 40,
         maxLinesPerCaption: 2,
@@ -257,7 +257,7 @@ class WhisperService {
       }
 
       const captions = this.createCaptionsFromWords(transcription.words, defaultOptions);
-      
+
       console.log(`[Whisper] Generated ${captions.length} captions`);
       return captions;
     } catch (error) {
@@ -295,7 +295,7 @@ class WhisperService {
   async detectLanguage(audioFile: string | Buffer | File): Promise<string> {
     try {
       console.log('[Whisper] Detecting audio language');
-      
+
       const transcription = await this.transcribeAudio({
         audioFile,
         response_format: 'verbose_json',
@@ -303,7 +303,7 @@ class WhisperService {
 
       const detectedLanguage = transcription.language || 'en';
       console.log(`[Whisper] Detected language: ${detectedLanguage}`);
-      
+
       return detectedLanguage;
     } catch (error) {
       console.error('[Whisper] Language detection failed:', error);
@@ -331,7 +331,7 @@ class WhisperService {
 
       fs.writeFileSync(filePath, content, 'utf8');
       console.log(`[Whisper] Captions saved to: ${filePath}`);
-      
+
       return filePath;
     } catch (error) {
       console.error('[Whisper] Failed to save captions:', error);
@@ -362,7 +362,7 @@ class WhisperService {
         if (currentCaption) {
           currentCaption.text += '\n';
           lineCount++;
-          
+
           // Check if we've reached max lines per caption
           if (lineCount >= options.maxLinesPerCaption) {
             // Finish current caption and start a new one
@@ -435,7 +435,7 @@ class WhisperService {
     captions.forEach((caption, index) => {
       const start = this.formatTimestamp(caption.start, true);
       const end = this.formatTimestamp(caption.end, true);
-      
+
       vtt += `${index + 1}\n`;
       vtt += `${start} --> ${end}\n`;
       vtt += `${caption.text}\n\n`;
@@ -450,7 +450,7 @@ class WhisperService {
     captions.forEach((caption, index) => {
       const start = this.formatTimestamp(caption.start, false);
       const end = this.formatTimestamp(caption.end, false);
-      
+
       srt += `${index + 1}\n`;
       srt += `${start} --> ${end}\n`;
       srt += `${caption.text}\n\n`;
@@ -468,7 +468,7 @@ class WhisperService {
     const hoursStr = hours.toString().padStart(2, '0');
     const minutesStr = minutes.toString().padStart(2, '0');
     const secsStr = secs.toString().padStart(2, '0');
-    
+
     if (useDecimal) {
       const msStr = ms.toString().padStart(3, '0');
       return `${hoursStr}:${minutesStr}:${secsStr}.${msStr}`;
@@ -497,12 +497,12 @@ class WhisperService {
       // Create a small test audio file (silence)
       const testBuffer = Buffer.alloc(1024); // Small buffer
       const testFile = new File([testBuffer], 'test.mp3', { type: 'audio/mpeg' });
-      
+
       await this.client.audio.transcriptions.create({
         file: testFile,
         model: 'whisper-1',
       });
-      
+
       return true;
     } catch (error) {
       console.error('[Whisper] Connection test failed:', error);

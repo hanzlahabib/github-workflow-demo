@@ -1,0 +1,76 @@
+{
+  "timestamp": "2025-07-21T10:31:39.666Z",
+  "summary": {
+    "total": 8,
+    "passed": 0,
+    "failed": 8
+  },
+  "results": [
+    {
+      "name": "Health Check",
+      "passed": false,
+      "message": "Health check failed: fetch is not a function",
+      "error": "fetch is not a function",
+      "timestamp": "2025-07-21T10:31:39.665Z"
+    },
+    {
+      "name": "Authentication",
+      "passed": false,
+      "message": "Authentication error: fetch is not a function",
+      "error": "fetch is not a function",
+      "timestamp": "2025-07-21T10:31:39.665Z"
+    },
+    {
+      "name": "Voices Endpoint",
+      "passed": false,
+      "message": "Voices endpoint error: fetch is not a function",
+      "error": "fetch is not a function",
+      "timestamp": "2025-07-21T10:31:39.666Z"
+    },
+    {
+      "name": "Voices Caching",
+      "passed": false,
+      "message": "Caching test error: fetch is not a function",
+      "error": "fetch is not a function",
+      "timestamp": "2025-07-21T10:31:39.666Z"
+    },
+    {
+      "name": "Video Generation",
+      "passed": false,
+      "message": "Video generation error: fetch is not a function",
+      "error": "fetch is not a function",
+      "timestamp": "2025-07-21T10:31:39.666Z"
+    },
+    {
+      "name": "Twitter Videos",
+      "passed": false,
+      "message": "Twitter videos error: fetch is not a function",
+      "error": "fetch is not a function",
+      "timestamp": "2025-07-21T10:31:39.666Z"
+    },
+    {
+      "name": "Top5 Videos",
+      "passed": false,
+      "message": "Top5 videos error: fetch is not a function",
+      "error": "fetch is not a function",
+      "timestamp": "2025-07-21T10:31:39.666Z"
+    },
+    {
+      "name": "Error Handling",
+      "passed": false,
+      "message": "Error handling test failed: fetch is not a function",
+      "error": "fetch is not a function",
+      "timestamp": "2025-07-21T10:31:39.666Z"
+    }
+  ],
+  "performance": {
+    "Health Check": 0,
+    "Authentication": 0,
+    "Voices API": 1,
+    "Voices Caching": 0,
+    "Video Generation": 0,
+    "Twitter Videos": 0,
+    "Top5 Videos": 0,
+    "Error Handling": 0
+  }
+}
