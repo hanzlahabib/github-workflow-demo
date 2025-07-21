@@ -1,4 +1,5 @@
 import { MongoClient, Db } from 'mongodb';
+import { getDatabaseConfig } from './centralized';
 
 class Database {
   private client: MongoClient | null = null;
@@ -6,11 +7,11 @@ class Database {
 
   async connect(): Promise<void> {
     try {
-      const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017';
-      this.client = new MongoClient(uri);
+      const dbConfig = getDatabaseConfig();
+      this.client = new MongoClient(dbConfig.uri);
       await this.client.connect();
-      this.db = this.client.db(process.env.DB_NAME || 'reelspeed');
-      console.log('Connected to MongoDB');
+      this.db = this.client.db(dbConfig.name);
+      console.log(`Connected to MongoDB: ${dbConfig.name}`);
     } catch (error) {
       console.error('Database connection error:', error);
       throw error;

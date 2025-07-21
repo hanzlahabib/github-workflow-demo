@@ -20,22 +20,22 @@ export const videoWorker = new Worker(
   'video-processing',
   async (job: Job<VideoJobData>) => {
     const { videoId, userId, type, input, settings } = job.data;
-    
+
     try {
       console.log(`[VideoWorker] Starting video generation for ${videoId}`);
       await updateJobProgress(job, 0, 'Starting video generation...');
-      
+
       // Skip database lookups for testing
       console.log(`[VideoWorker] Processing ${type} video with input:`, input);
 
       await updateJobProgress(job, 10, 'Preparing render data...');
-      
+
       // Use VideoService to properly transform input data
       console.log(`[VideoWorker] Creating VideoService instance...`);
       const videoService = new VideoService();
-      
+
       await updateJobProgress(job, 20, 'Transforming input data...');
-      
+
       // Use the proper prepareInputProps method that handles enhanced config
       const renderData = await videoService.prepareInputProps({
         type: type as any,
@@ -43,14 +43,14 @@ export const videoWorker = new Worker(
         settings: settings,
         userId: userId
       });
-      
+
       console.log(`[VideoWorker] Transformed render data:`, JSON.stringify(renderData, null, 2));
 
       await updateJobProgress(job, 30, 'Setting up Remotion render...');
 
       await updateJobProgress(job, 50, 'Rendering video...');
       console.log(`[VideoWorker] Starting Remotion render with data:`, renderData);
-      
+
       const remotionService = getRemotionService();
       const videoResult = await remotionService.renderVideo({
         compositionId: 'ChatReel',
@@ -67,7 +67,7 @@ export const videoWorker = new Worker(
       });
 
       await updateJobProgress(job, 95, 'Finalizing...');
-      
+
       if (!videoResult.success) {
         throw new Error(videoResult.error || 'Video rendering failed');
       }
@@ -75,7 +75,7 @@ export const videoWorker = new Worker(
       console.log(`[VideoWorker] Video rendered successfully:`, videoResult.outputPath);
 
       await updateJobProgress(job, 100, 'Video generation completed!');
-      
+
       return {
         success: true,
         videoPath: videoResult.outputPath,
@@ -86,7 +86,7 @@ export const videoWorker = new Worker(
 
     } catch (error) {
       console.error('[VideoWorker] Video generation error:', error);
-      
+
       // Skip database updates for testing
       console.log(`[VideoWorker] Job ${videoId} failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
 
@@ -104,7 +104,7 @@ export const videoWorker = new Worker(
 async function updateJobProgress(job: Job, progress: number, message: string) {
   await job.updateProgress(progress);
   console.log(`[VideoWorker] Progress ${progress}%: ${message}`);
-  
+
   // Skip database updates for testing
   // await JobModel.findOneAndUpdate(
   //   { jobId: job.id },

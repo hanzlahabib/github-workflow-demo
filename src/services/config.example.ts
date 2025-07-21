@@ -7,33 +7,19 @@ export const aiServicesConfig: AIServicesConfig = {
   openai: {
     apiKey: process.env.OPENAI_API_KEY || 'your_openai_api_key_here',
     organization: process.env.OPENAI_ORGANIZATION || undefined, // Optional
+    model: process.env.OPENAI_MODEL || 'gpt-4',
+    maxTokens: parseInt(process.env.OPENAI_MAX_TOKENS || '4000', 10),
+    temperature: parseFloat(process.env.OPENAI_TEMPERATURE || '0.7'),
   },
-  
+
   elevenlabs: {
     apiKey: process.env.ELEVENLABS_API_KEY || 'your_elevenlabs_api_key_here',
+    model: process.env.ELEVENLABS_MODEL || 'eleven_monolingual_v1',
+    voice: process.env.ELEVENLABS_VOICE || 'pNInz6obpgDQGcFmaJgB',
+    stability: parseFloat(process.env.ELEVENLABS_STABILITY || '0.5'),
+    similarityBoost: parseFloat(process.env.ELEVENLABS_SIMILARITY_BOOST || '0.8'),
   },
-  
-  whisper: {
-    apiKey: process.env.OPENAI_API_KEY || 'your_openai_api_key_here', // Same as OpenAI
-  },
-  
-  dalle: {
-    apiKey: process.env.OPENAI_API_KEY || 'your_openai_api_key_here', // Same as OpenAI
-  },
-  
-  s3: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'your_aws_access_key_id',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'your_aws_secret_access_key',
-    region: process.env.AWS_REGION || 'us-east-1',
-    bucketName: process.env.S3_BUCKET_NAME || 'reelspeed-assets',
-  },
-  
-  remotion: {
-    compositionsPath: process.env.REMOTION_COMPOSITIONS_PATH || './remotion/compositions',
-    outputDir: process.env.REMOTION_OUTPUT_DIR || './renders',
-    lambdaRegion: process.env.REMOTION_LAMBDA_REGION || undefined, // Optional for cloud rendering
-    lambdaRole: process.env.REMOTION_LAMBDA_ROLE || undefined, // Optional for cloud rendering
-  },
+
 };
 
 // Environment variables template for .env file
@@ -70,18 +56,7 @@ export const developmentConfig: Partial<AIServicesConfig> = {
 
 // Production configuration with additional security settings
 export const productionConfig: Partial<AIServicesConfig> = {
-  s3: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-    region: process.env.AWS_REGION!,
-    bucketName: process.env.S3_BUCKET_NAME!,
-  },
-  remotion: {
-    compositionsPath: '/app/remotion/compositions',
-    outputDir: '/tmp/renders',
-    lambdaRegion: process.env.REMOTION_LAMBDA_REGION,
-    lambdaRole: process.env.REMOTION_LAMBDA_ROLE,
-  },
+  // Override specific AI service settings for production if needed
 };
 
 // Service feature flags for conditional initialization
@@ -250,20 +225,12 @@ export function validateConfig(config: AIServicesConfig): string[] {
     errors.push('ElevenLabs API key is required');
   }
 
-  if (!config.s3.accessKeyId || !config.s3.secretAccessKey) {
-    errors.push('AWS credentials are required');
+  if (!config.openai.model) {
+    errors.push('OpenAI model is required');
   }
 
-  if (!config.s3.bucketName) {
-    errors.push('S3 bucket name is required');
-  }
-
-  if (!config.remotion.compositionsPath) {
-    errors.push('Remotion compositions path is required');
-  }
-
-  if (!config.remotion.outputDir) {
-    errors.push('Remotion output directory is required');
+  if (!config.elevenlabs.voice) {
+    errors.push('ElevenLabs voice is required');
   }
 
   return errors;
@@ -272,14 +239,14 @@ export function validateConfig(config: AIServicesConfig): string[] {
 // Helper function to get configuration based on environment
 export function getConfigForEnvironment(): AIServicesConfig {
   const baseConfig = aiServicesConfig;
-  
+
   if (process.env.NODE_ENV === 'production') {
     return { ...baseConfig, ...productionConfig };
   }
-  
+
   if (process.env.NODE_ENV === 'development') {
     return { ...baseConfig, ...developmentConfig };
   }
-  
+
   return baseConfig;
 }

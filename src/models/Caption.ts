@@ -37,14 +37,22 @@ export interface ICaption extends Document {
   title: string;
   language: string;
   status: 'processing' | 'completed' | 'failed' | 'editing';
-  
+
+  // Methods
+  calculateAverageConfidence(): number;
+  getWordCount(): number;
+  getDuration(): number;
+  exportToSRT(): string;
+  exportToVTT(): string;
+  formatTime(seconds: number): string;
+
   // Caption content
   lines: ICaptionLine[];
   totalDuration: number;
-  
+
   // Styling
   style: ICaptionStyle;
-  
+
   // Settings
   settings: {
     timing: 'auto' | 'manual';
@@ -55,7 +63,7 @@ export interface ICaption extends Document {
     customDictionary: string[];
     confidenceThreshold: number;
   };
-  
+
   // Source information
   source: {
     type: 'upload' | 'url' | 'generated';
@@ -66,7 +74,7 @@ export interface ICaption extends Document {
     videoFormat?: string;
     sourceUrl?: string;
   };
-  
+
   // Processing metadata
   processing: {
     engineUsed: 'whisper' | 'deepgram' | 'azure' | 'google';
@@ -77,7 +85,7 @@ export interface ICaption extends Document {
     errorCount: number;
     warnings: string[];
   };
-  
+
   // Usage tracking
   usage: {
     exportCount: number;
@@ -85,14 +93,14 @@ export interface ICaption extends Document {
     formats: string[];
     platforms: string[];
   };
-  
+
   // Templates and presets
   template?: {
     id: string;
     name: string;
     category: 'youtube' | 'tiktok' | 'instagram' | 'professional' | 'custom';
   };
-  
+
   // Collaboration
   isShared: boolean;
   sharedWith: mongoose.Types.ObjectId[];
@@ -101,7 +109,7 @@ export interface ICaption extends Document {
     canExport: boolean;
     canShare: boolean;
   };
-  
+
   // Analytics
   analytics: {
     viewCount: number;
@@ -110,7 +118,7 @@ export interface ICaption extends Document {
     shareCount: number;
     lastAccessed: Date;
   };
-  
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -172,17 +180,17 @@ const captionSchema = new Schema<ICaption>({
     enum: ['processing', 'completed', 'failed', 'editing'],
     default: 'processing'
   },
-  
+
   // Caption content
   lines: [captionLineSchema],
   totalDuration: { type: Number, default: 0 },
-  
+
   // Styling
   style: {
     type: captionStyleSchema,
     default: () => ({})
   },
-  
+
   // Settings
   settings: {
     timing: { type: String, enum: ['auto', 'manual'], default: 'auto' },
@@ -193,7 +201,7 @@ const captionSchema = new Schema<ICaption>({
     customDictionary: [String],
     confidenceThreshold: { type: Number, default: 0.7, min: 0, max: 1 }
   },
-  
+
   // Source information
   source: {
     type: { type: String, enum: ['upload', 'url', 'generated'], required: true },
@@ -204,7 +212,7 @@ const captionSchema = new Schema<ICaption>({
     videoFormat: String,
     sourceUrl: String
   },
-  
+
   // Processing metadata
   processing: {
     engineUsed: { type: String, enum: ['whisper', 'deepgram', 'azure', 'google'], default: 'whisper' },
@@ -215,7 +223,7 @@ const captionSchema = new Schema<ICaption>({
     errorCount: { type: Number, default: 0 },
     warnings: [String]
   },
-  
+
   // Usage tracking
   usage: {
     exportCount: { type: Number, default: 0 },
@@ -223,14 +231,14 @@ const captionSchema = new Schema<ICaption>({
     formats: [String],
     platforms: [String]
   },
-  
+
   // Templates and presets
   template: {
     id: String,
     name: String,
     category: { type: String, enum: ['youtube', 'tiktok', 'instagram', 'professional', 'custom'] }
   },
-  
+
   // Collaboration
   isShared: { type: Boolean, default: false },
   sharedWith: [{ type: Schema.Types.ObjectId, ref: 'User' }],
@@ -239,7 +247,7 @@ const captionSchema = new Schema<ICaption>({
     canExport: { type: Boolean, default: true },
     canShare: { type: Boolean, default: false }
   },
-  
+
   // Analytics
   analytics: {
     viewCount: { type: Number, default: 0 },
@@ -300,7 +308,7 @@ captionSchema.methods.formatTime = function(seconds: number) {
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
   const ms = Math.floor((seconds % 1) * 1000);
-  
+
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
 };
 

@@ -97,7 +97,7 @@ class DalleService {
   async generateImage(request: ImageGenerationRequest): Promise<ImageGenerationResponse> {
     try {
       console.log(`[DALL-E] Generating ${request.n || 1} image(s) with prompt: ${request.prompt.substring(0, 50)}...`);
-      
+
       const response = await this.client.images.generate({
         model: request.model || 'dall-e-3',
         prompt: request.prompt,
@@ -120,7 +120,7 @@ class DalleService {
   async editImage(request: ImageEditRequest): Promise<ImageGenerationResponse> {
     try {
       console.log('[DALL-E] Editing image with prompt:', request.prompt.substring(0, 50) + '...');
-      
+
       // Prepare image files
       const imageFile = await this.prepareImageFile(request.image, 'image.png');
       const maskFile = request.mask ? await this.prepareImageFile(request.mask, 'mask.png') : undefined;
@@ -147,7 +147,7 @@ class DalleService {
   async createImageVariation(request: ImageVariationRequest): Promise<ImageGenerationResponse> {
     try {
       console.log('[DALL-E] Creating image variations');
-      
+
       const imageFile = await this.prepareImageFile(request.image, 'image.png');
 
       const response = await this.client.images.createVariation({
@@ -170,7 +170,7 @@ class DalleService {
   async generateVideoBackground(request: VideoBackgroundRequest): Promise<GeneratedImage> {
     try {
       console.log(`[DALL-E] Generating video background: ${request.theme} theme`);
-      
+
       const prompt = this.buildBackgroundPrompt(request);
       const size = this.getOptimalSize(request.aspectRatio);
 
@@ -193,7 +193,7 @@ class DalleService {
   async generateThumbnail(request: ThumbnailRequest): Promise<GeneratedImage> {
     try {
       console.log(`[DALL-E] Generating ${request.style} thumbnail for: ${request.title}`);
-      
+
       const prompt = this.buildThumbnailPrompt(request);
       const size = this.getOptimalSize(request.aspectRatio);
 
@@ -216,7 +216,7 @@ class DalleService {
   async generateStoryIllustration(request: StoryIllustrationRequest): Promise<GeneratedImage> {
     try {
       console.log('[DALL-E] Generating story illustration');
-      
+
       const prompt = this.buildStoryPrompt(request);
       const size = this.getOptimalSize(request.aspectRatio);
 
@@ -239,14 +239,14 @@ class DalleService {
   async downloadImage(imageUrl: string, filePath: string): Promise<string> {
     try {
       console.log(`[DALL-E] Downloading image to: ${filePath}`);
-      
+
       const response = await fetch(imageUrl);
       if (!response.ok) {
         throw new Error(`Failed to download image: ${response.statusText}`);
       }
 
       const buffer = Buffer.from(await response.arrayBuffer());
-      
+
       const dir = path.dirname(filePath);
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
@@ -254,7 +254,7 @@ class DalleService {
 
       fs.writeFileSync(filePath, buffer);
       console.log(`[DALL-E] Image saved successfully`);
-      
+
       return filePath;
     } catch (error) {
       console.error('[DALL-E] Image download failed:', error);
@@ -265,9 +265,9 @@ class DalleService {
   async saveBase64Image(base64Data: string, filePath: string): Promise<string> {
     try {
       console.log(`[DALL-E] Saving base64 image to: ${filePath}`);
-      
+
       const buffer = Buffer.from(base64Data, 'base64');
-      
+
       const dir = path.dirname(filePath);
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
@@ -275,7 +275,7 @@ class DalleService {
 
       fs.writeFileSync(filePath, buffer);
       console.log(`[DALL-E] Base64 image saved successfully`);
-      
+
       return filePath;
     } catch (error) {
       console.error('[DALL-E] Base64 image save failed:', error);
@@ -314,7 +314,7 @@ class DalleService {
     };
 
     let prompt = `A ${styleDescriptions[request.style]} ${themeDescriptions[request.theme]} with ${moodDescriptions[request.mood]}`;
-    
+
     if (request.description) {
       prompt += `. ${request.description}`;
     }
@@ -387,7 +387,7 @@ class DalleService {
     };
 
     let prompt = `${artStyleDescriptions[request.artStyle]} illustration of ${request.sceneDescription}`;
-    
+
     if (request.characterCount > 0) {
       prompt += ` featuring ${request.characterCount} character${request.characterCount > 1 ? 's' : ''}`;
     }

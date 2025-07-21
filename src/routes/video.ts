@@ -1,9 +1,15 @@
 import express, { Response } from 'express';
 import { Video, Job as JobModel, User } from '../models';
-import { AuthRequest } from '../utils/jwt';
-import { authenticateToken, requirePremium } from '../middleware/auth';
+import { AuthenticatedRequest } from '../utils/jwt';
+import { authenticateToken } from '../middleware/auth';
 import { VideoService } from '../services/videoService';
 // import { videoQueue } from '../config/redis'; // Temporarily disabled for testing
+
+// Centralized error handling and responses
+import { sendSuccess, sendBadRequest, sendForbidden, sendNotFound, sendInternalError, getRequestId, videoResponses } from '../utils/responses';
+import { ErrorCode } from '../types/api';
+import { asyncHandler, businessErrorHandlers } from '../middleware/errorHandler';
+import { logger } from '../utils/logger';
 
 const router = express.Router();
 
@@ -13,9 +19,9 @@ router.post('/generate', async (req: any, res: Response) => {
       bodyKeys: Object.keys(req.body),
       body: req.body
     });
-    
+
     const { type, title, description, input, settings, userId } = req.body;
-    
+
     console.log('[API] 📦 Extracted request data:', {
       type,
       title,
@@ -25,7 +31,7 @@ router.post('/generate', async (req: any, res: Response) => {
       settingsKeys: settings ? Object.keys(settings) : 'undefined',
       userId
     });
-    
+
     // ❌ NO HARDCODED USER IDs - Require userId from request
     if (!userId) {
       return res.status(400).json({
@@ -44,7 +50,7 @@ router.post('/generate', async (req: any, res: Response) => {
     // ❌ NO MOCK USERS - Require valid user authentication
     console.log('[API] Looking up user:', userId);
     const user = await User.findById(userId);
-    
+
     if (!user) {
       console.error('[API] ❌ User not found:', userId);
       return res.status(401).json({
@@ -130,7 +136,7 @@ router.post('/generate', async (req: any, res: Response) => {
     console.log('[API] Queue disabled, processing video generation directly...');
     try {
       const videoService = new VideoService();
-      
+
       // Process the video generation asynchronously
       setImmediate(async () => {
         try {
@@ -143,23 +149,23 @@ router.post('/generate', async (req: any, res: Response) => {
             settingsKeys: settings ? Object.keys(settings) : 'undefined',
             type
           });
-          
+
           const videoServiceRequest = {
             type: type as any,
             input: input,
             settings: settings,
             userId: userId
           };
-          
+
           console.log('[API] 📤 Calling VideoService.generateVideo with:', {
             requestKeys: Object.keys(videoServiceRequest),
             inputKeys: videoServiceRequest.input ? Object.keys(videoServiceRequest.input) : 'undefined',
             hasInputConfig: !!(videoServiceRequest.input?.config)
           });
-          
+
           const result = await videoService.generateVideo(videoServiceRequest, (progressUpdate) => {
             console.log('[API] 📊 Progress Update:', progressUpdate);
-            
+
             // Update video record with progress in real-time
             Video.findByIdAndUpdate(video._id, {
               'progress.phase': progressUpdate.phase,
@@ -170,9 +176,9 @@ router.post('/generate', async (req: any, res: Response) => {
               updatedAt: new Date()
             }).catch(err => console.error('[API] Progress update failed:', err));
           });
-          
+
           console.log('[API] Video generation completed:', result);
-          
+
           // Update video record with result
           try {
             await Video.findByIdAndUpdate(video._id, {
@@ -183,7 +189,7 @@ router.post('/generate', async (req: any, res: Response) => {
           } catch (dbError) {
             console.error('[API] Failed to update video in database:', dbError);
           }
-          
+
         } catch (genError) {
           console.error('[API] Video generation failed:', genError);
           try {
@@ -196,7 +202,7 @@ router.post('/generate', async (req: any, res: Response) => {
           }
         }
       });
-      
+
     } catch (error) {
       console.error('[API] Failed to start video generation:', error);
     }
@@ -229,7 +235,7 @@ router.post('/generate', async (req: any, res: Response) => {
   }
 });
 
-router.get('/status/:videoId', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.get('/status/:videoId', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { videoId } = req.params;
     const userId = req.user!.userId;
@@ -298,7 +304,7 @@ router.get('/status/:videoId', authenticateToken, async (req: AuthRequest, res: 
   }
 });
 
-router.get('/my-videos', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.get('/my-videos', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.userId;
     const page = parseInt(req.query.page as string) || 1;
@@ -337,7 +343,7 @@ router.get('/my-videos', authenticateToken, async (req: AuthRequest, res: Respon
   }
 });
 
-router.delete('/:videoId', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.delete('/:videoId', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { videoId } = req.params;
     const userId = req.user!.userId;
@@ -372,7 +378,7 @@ router.delete('/:videoId', authenticateToken, async (req: AuthRequest, res: Resp
   }
 });
 
-router.post('/:videoId/retry', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.post('/:videoId/retry', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { videoId } = req.params;
     const userId = req.user!.userId;
@@ -421,7 +427,7 @@ router.post('/:videoId/retry', authenticateToken, async (req: AuthRequest, res: 
   }
 });
 
-router.post('/:videoId/cancel', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.post('/:videoId/cancel', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { videoId } = req.params;
     const userId = req.user!.userId;
@@ -449,7 +455,7 @@ router.post('/:videoId/cancel', authenticateToken, async (req: AuthRequest, res:
     // Cancel any associated jobs
     await JobModel.updateMany(
       { videoId },
-      { 
+      {
         status: 'cancelled',
         error: 'Generation cancelled by user',
         updatedAt: new Date()

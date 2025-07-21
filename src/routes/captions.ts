@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import { AuthRequest } from '../utils/jwt';
 import { authenticateToken } from '../middleware/auth';
 import { Caption, Video } from '../models';
-import { whisperService } from '../services/whisper';
-import { upload } from '../middleware/upload';
+import { getWhisperService } from '../services/whisper';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -25,7 +25,7 @@ const storage = multer.diskStorage({
   }
 });
 
-const videoUpload = multer({ 
+const videoUpload = multer({
   storage,
   limits: { fileSize: 500 * 1024 * 1024 }, // 500MB
   fileFilter: (req, file, cb) => {
@@ -39,36 +39,36 @@ const videoUpload = multer({
 });
 
 // Get all captions for a user
-router.get('/', authenticateToken, async (req: Request, res: Response) => {
+router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const { page = 1, limit = 10, status, language, search } = req.query;
-    
+
     const query: any = { userId };
-    
+
     if (status) {
       query.status = status;
     }
-    
+
     if (language) {
       query.language = language;
     }
-    
+
     if (search) {
       query.$or = [
         { title: { $regex: search, $options: 'i' } },
         { 'lines.text': { $regex: search, $options: 'i' } }
       ];
     }
-    
+
     const captions = await Caption.find(query)
       .sort({ createdAt: -1 })
       .limit(Number(limit))
       .skip((Number(page) - 1) * Number(limit))
       .populate('videoId', 'title type output.videoUrl output.thumbnailUrl');
-    
+
     const total = await Caption.countDocuments(query);
-    
+
     res.json({
       success: true,
       data: {
@@ -88,21 +88,21 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
 });
 
 // Get specific caption by ID
-router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
+router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const caption = await Caption.findOne({ _id: req.params.id, userId })
       .populate('videoId', 'title type output.videoUrl output.thumbnailUrl');
-    
+
     if (!caption) {
       return res.status(404).json({ success: false, message: 'Caption not found' });
     }
-    
+
     // Update analytics
     caption.analytics.viewCount += 1;
     caption.analytics.lastAccessed = new Date();
     await caption.save();
-    
+
     res.json({
       success: true,
       data: { caption }
@@ -114,21 +114,21 @@ router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
 });
 
 // Create new caption from video upload
-router.post('/upload', authenticateToken, videoUpload.single('video'), async (req: Request, res: Response) => {
+router.post('/upload', authenticateToken, videoUpload.single('video'), async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const file = req.file;
-    
+
     if (!file) {
       return res.status(400).json({ success: false, message: 'No video file provided' });
     }
-    
+
     const {
       title,
       language = 'en',
       settings = {}
     } = req.body;
-    
+
     // Create caption record
     const caption = new Caption({
       userId,
@@ -154,17 +154,17 @@ router.post('/upload', authenticateToken, videoUpload.single('video'), async (re
       lines: [],
       totalDuration: 0
     });
-    
+
     await caption.save();
-    
+
     // Process video in background
     processVideoForCaptions(caption._id.toString(), file.path);
-    
+
     res.json({
       success: true,
       data: { caption }
     });
-    
+
   } catch (error) {
     console.error('Error uploading video for captions:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
@@ -172,17 +172,17 @@ router.post('/upload', authenticateToken, videoUpload.single('video'), async (re
 });
 
 // Create caption from existing video
-router.post('/from-video/:videoId', authenticateToken, async (req: Request, res: Response) => {
+router.post('/from-video/:videoId', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const { videoId } = req.params;
     const { title, language = 'en', settings = {} } = req.body;
-    
+
     const video = await Video.findOne({ _id: videoId, userId });
     if (!video) {
       return res.status(404).json({ success: false, message: 'Video not found' });
     }
-    
+
     // Create caption record
     const caption = new Caption({
       userId,
@@ -208,19 +208,19 @@ router.post('/from-video/:videoId', authenticateToken, async (req: Request, res:
       lines: [],
       totalDuration: video.output.duration || 0
     });
-    
+
     await caption.save();
-    
+
     // Process video for captions
     if (video.output.videoUrl) {
       processVideoUrlForCaptions(caption._id.toString(), video.output.videoUrl);
     }
-    
+
     res.json({
       success: true,
       data: { caption }
     });
-    
+
   } catch (error) {
     console.error('Error creating caption from video:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
@@ -228,16 +228,16 @@ router.post('/from-video/:videoId', authenticateToken, async (req: Request, res:
 });
 
 // Update caption
-router.put('/:id', authenticateToken, async (req: Request, res: Response) => {
+router.put('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const { title, language, lines, style, settings } = req.body;
-    
+
     const caption = await Caption.findOne({ _id: req.params.id, userId });
     if (!caption) {
       return res.status(404).json({ success: false, message: 'Caption not found' });
     }
-    
+
     // Update fields
     if (title) caption.title = title;
     if (language) caption.language = language;
@@ -247,18 +247,18 @@ router.put('/:id', authenticateToken, async (req: Request, res: Response) => {
     }
     if (style) caption.style = { ...caption.style, ...style };
     if (settings) caption.settings = { ...caption.settings, ...settings };
-    
+
     // Update analytics
     caption.analytics.editCount += 1;
     caption.analytics.lastAccessed = new Date();
-    
+
     await caption.save();
-    
+
     res.json({
       success: true,
       data: { caption }
     });
-    
+
   } catch (error) {
     console.error('Error updating caption:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
@@ -266,22 +266,22 @@ router.put('/:id', authenticateToken, async (req: Request, res: Response) => {
 });
 
 // Delete caption
-router.delete('/:id', authenticateToken, async (req: Request, res: Response) => {
+router.delete('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const caption = await Caption.findOne({ _id: req.params.id, userId });
-    
+
     if (!caption) {
       return res.status(404).json({ success: false, message: 'Caption not found' });
     }
-    
+
     await Caption.deleteOne({ _id: req.params.id, userId });
-    
+
     res.json({
       success: true,
       message: 'Caption deleted successfully'
     });
-    
+
   } catch (error) {
     console.error('Error deleting caption:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
@@ -289,20 +289,20 @@ router.delete('/:id', authenticateToken, async (req: Request, res: Response) => 
 });
 
 // Export caption in various formats
-router.get('/:id/export/:format', authenticateToken, async (req: Request, res: Response) => {
+router.get('/:id/export/:format', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const { format } = req.params;
-    
+
     const caption = await Caption.findOne({ _id: req.params.id, userId });
     if (!caption) {
       return res.status(404).json({ success: false, message: 'Caption not found' });
     }
-    
+
     let content: string;
     let filename: string;
     let mimeType: string;
-    
+
     switch (format.toLowerCase()) {
       case 'srt':
         content = caption.exportToSRT();
@@ -322,7 +322,7 @@ router.get('/:id/export/:format', authenticateToken, async (req: Request, res: R
       default:
         return res.status(400).json({ success: false, message: 'Unsupported format' });
     }
-    
+
     // Update usage tracking
     caption.usage.exportCount += 1;
     caption.usage.lastExported = new Date();
@@ -330,13 +330,13 @@ router.get('/:id/export/:format', authenticateToken, async (req: Request, res: R
       caption.usage.formats.push(format);
     }
     caption.analytics.exportCount += 1;
-    
+
     await caption.save();
-    
+
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', mimeType);
     res.send(content);
-    
+
   } catch (error) {
     console.error('Error exporting caption:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
@@ -344,33 +344,33 @@ router.get('/:id/export/:format', authenticateToken, async (req: Request, res: R
 });
 
 // Apply caption template
-router.post('/:id/apply-template', authenticateToken, async (req: Request, res: Response) => {
+router.post('/:id/apply-template', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const { templateId, templateName, category } = req.body;
-    
+
     const caption = await Caption.findOne({ _id: req.params.id, userId });
     if (!caption) {
       return res.status(404).json({ success: false, message: 'Caption not found' });
     }
-    
+
     // Apply template styles based on category
     const templateStyles = getTemplateStyles(category);
-    
+
     caption.style = { ...caption.style, ...templateStyles };
     caption.template = {
       id: templateId,
       name: templateName,
       category
     };
-    
+
     await caption.save();
-    
+
     res.json({
       success: true,
       data: { caption }
     });
-    
+
   } catch (error) {
     console.error('Error applying template:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
@@ -378,7 +378,7 @@ router.post('/:id/apply-template', authenticateToken, async (req: Request, res: 
 });
 
 // Get caption templates
-router.get('/templates/list', authenticateToken, async (req: Request, res: Response) => {
+router.get('/templates/list', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const templates = [
       {
@@ -442,12 +442,12 @@ router.get('/templates/list', authenticateToken, async (req: Request, res: Respo
         }
       }
     ];
-    
+
     res.json({
       success: true,
       data: { templates }
     });
-    
+
   } catch (error) {
     console.error('Error fetching templates:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
@@ -459,14 +459,18 @@ async function processVideoForCaptions(captionId: string, videoPath: string) {
   try {
     const caption = await Caption.findById(captionId);
     if (!caption) return;
-    
+
     const startTime = Date.now();
-    
+
     // Use Whisper service to generate captions
-    const result = await whisperService.transcribeVideo(videoPath);
-    
+    const result = await getWhisperService().transcribeAudio({
+      audioFile: videoPath,
+      response_format: 'verbose_json',
+      timestamp_granularities: ['segment']
+    });
+
     const processingTime = Date.now() - startTime;
-    
+
     // Update caption with results
     caption.lines = result.segments.map((segment: any, index: number) => ({
       id: `line-${index}`,
@@ -476,27 +480,27 @@ async function processVideoForCaptions(captionId: string, videoPath: string) {
       confidence: segment.confidence || 0.9,
       speaker: segment.speaker || undefined
     }));
-    
+
     caption.totalDuration = caption.getDuration();
     caption.status = 'completed';
     caption.processing = {
       engineUsed: 'whisper',
       processingTime,
       averageConfidence: caption.calculateAverageConfidence(),
-      qualityScore: result.qualityScore || 0.8,
+      qualityScore: 0.8,
       wordsPerMinute: (caption.getWordCount() / (caption.totalDuration / 60)) || 0,
-      errorCount: result.errors?.length || 0,
-      warnings: result.warnings || []
+      errorCount: 0,
+      warnings: []
     };
-    
+
     await caption.save();
-    
+
     // Clean up temporary file
     fs.unlinkSync(videoPath);
-    
+
   } catch (error) {
     console.error('Error processing video for captions:', error);
-    
+
     // Update caption with error status
     const caption = await Caption.findById(captionId);
     if (caption) {
@@ -511,14 +515,18 @@ async function processVideoUrlForCaptions(captionId: string, videoUrl: string) {
   try {
     const caption = await Caption.findById(captionId);
     if (!caption) return;
-    
+
     const startTime = Date.now();
-    
+
     // Use Whisper service to generate captions from URL
-    const result = await whisperService.transcribeVideoFromUrl(videoUrl);
-    
+    const result = await getWhisperService().transcribeAudio({
+      audioFile: videoUrl,
+      response_format: 'verbose_json',
+      timestamp_granularities: ['segment']
+    });
+
     const processingTime = Date.now() - startTime;
-    
+
     // Update caption with results
     caption.lines = result.segments.map((segment: any, index: number) => ({
       id: `line-${index}`,
@@ -528,24 +536,24 @@ async function processVideoUrlForCaptions(captionId: string, videoUrl: string) {
       confidence: segment.confidence || 0.9,
       speaker: segment.speaker || undefined
     }));
-    
+
     caption.totalDuration = caption.getDuration();
     caption.status = 'completed';
     caption.processing = {
       engineUsed: 'whisper',
       processingTime,
       averageConfidence: caption.calculateAverageConfidence(),
-      qualityScore: result.qualityScore || 0.8,
+      qualityScore: 0.8,
       wordsPerMinute: (caption.getWordCount() / (caption.totalDuration / 60)) || 0,
-      errorCount: result.errors?.length || 0,
-      warnings: result.warnings || []
+      errorCount: 0,
+      warnings: []
     };
-    
+
     await caption.save();
-    
+
   } catch (error) {
     console.error('Error processing video URL for captions:', error);
-    
+
     // Update caption with error status
     const caption = await Caption.findById(captionId);
     if (caption) {
@@ -595,7 +603,7 @@ function getTemplateStyles(category: string) {
       animation: 'none' as const
     }
   };
-  
+
   return templates[category] || templates.youtube;
 }
 

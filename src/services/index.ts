@@ -1,7 +1,18 @@
-// AI Services Export Module
-// This module provides centralized access to all AI and cloud services
+/**
+ * Standardized AI Services Module
+ * This module provides centralized access to all AI and cloud services using the new standardized patterns
+ */
 
-// OpenAI Service - GPT-4 integration
+// Export base classes and interfaces
+export { BaseService, BaseServiceInterface, type ServiceConfig, type OperationResult } from './BaseService';
+
+// Export configuration types
+export type { AIServicesConfig } from '../config/types';
+export { ServiceFactory } from './ServiceFactory';
+export { ServiceContainer } from './ServiceContainer';
+export { ServiceRegistry, SERVICE_TOKENS, type ServiceToken } from './ServiceRegistry';
+
+// Export service classes with standardized patterns
 export {
   default as OpenAIService,
   createOpenAIService,
@@ -15,234 +26,76 @@ export {
   type QuizGenerationRequest,
 } from './openai';
 
-// ElevenLabs Service - Voice generation
 export {
   default as ElevenLabsService,
   createElevenLabsService,
   getElevenLabsService,
-  type ElevenLabsConfig,
-  type Voice,
-  // type VoiceSettings, // Removed as it's no longer exported
-  type TextToSpeechRequest,
-  type AudioGenerationResponse,
-  type SupportedLanguage,
   VOICE_PRESETS,
   SUPPORTED_LANGUAGES,
 } from './elevenlabs';
 
-// Whisper Service - Caption generation
 export {
   default as WhisperService,
   createWhisperService,
   getWhisperService,
-  type WhisperConfig,
-  type TranscriptionRequest,
-  type TranscriptionResponse,
-  type CaptionOptions,
-  type Caption,
-  WHISPER_LANGUAGES,
 } from './whisper';
 
-// DALL-E Service - AI image generation
 export {
   default as DalleService,
   createDalleService,
   getDalleService,
-  type DalleConfig,
-  type ImageGenerationRequest,
-  type GeneratedImage,
-  type VideoBackgroundRequest,
-  type ThumbnailRequest,
-  type StoryIllustrationRequest,
 } from './dalle';
 
-// S3 Service - AWS S3 integration
 export {
   default as S3Service,
   createS3Service,
   getS3Service,
-  type S3Config,
-  type UploadOptions,
-  type UploadResult,
-  type DownloadOptions,
-  type ListObjectsOptions,
-  type S3Object,
-  type SignedUrlOptions,
 } from './s3';
 
-// Remotion Service - Video rendering
 export {
   default as RemotionService,
   createRemotionService,
   getRemotionService,
-  type RemotionConfig,
-  type RenderRequest,
-  type VideoTemplate,
-  type RenderProgress,
-  type RenderResult,
-  type StoryVideoProps,
-  type RedditVideoProps,
-  type QuizVideoProps,
-  VIDEO_TEMPLATES,
 } from './remotion';
 
-// Import service creation functions for internal use
-import { _createOpenAIService as __createOpenAIService, _getOpenAIService as __getOpenAIService } from './openai';
-import { _createElevenLabsService as __createElevenLabsService, _getElevenLabsService as __getElevenLabsService } from './elevenlabs';
-import { _createWhisperService as __createWhisperService, _getWhisperService as __getWhisperService } from './whisper';
-import { _createDalleService as __createDalleService, _getDalleService as __getDalleService } from './dalle';
-import { _createS3Service as __createS3Service, _getS3Service as __getS3Service } from './s3';
-import { createRemotionService as __createRemotionService, getRemotionService as __getRemotionService } from './remotion';
+// Export types from centralized types
+export type {
+  ElevenLabsConfig,
+  Voice,
+  TextToSpeechRequest,
+  AudioGenerationResponse,
+  VoicesListResponse,
+  SupportedLanguage,
+} from '@/types/services';
 
-// Service initialization and management
-export interface AIServicesConfig {
-  openai: {
-    apiKey: string;
-    organization?: string;
-  };
-  elevenlabs: {
-    apiKey: string;
-  };
-  whisper: {
-    apiKey: string; // Same as OpenAI
-  };
-  dalle: {
-    apiKey: string; // Same as OpenAI
-  };
-  s3: {
-    accessKeyId: string;
-    secretAccessKey: string;
-    region: string;
-    bucketName: string;
-  };
-  remotion: {
-    compositionsPath: string;
-    outputDir: string;
-    lambdaRegion?: string;
-    lambdaRole?: string;
-  };
-}
+// Export cache utilities
+export { getCacheService, CacheKeys, CacheTTL } from './cache';
 
-// Initialize all services with configuration
-export function initializeAIServices(config: AIServicesConfig) {
+// Import and initialize service registry
+import { serviceRegistry, SERVICE_TOKENS } from './ServiceRegistry';
+
+/**
+ * NEW STANDARDIZED SERVICE INITIALIZATION
+ * Use ServiceRegistry for all service management
+ */
+
+// Initialize all services with standardized patterns
+export async function initializeAIServices(): Promise<void> {
   try {
-    console.log('[AI Services] Initializing all AI services...');
-
-    // Initialize OpenAI Service
-    _createOpenAIService({
-      apiKey: config.openai.apiKey,
-      organization: config.openai.organization,
-      maxRetries: 3,
-      timeout: 60000,
-    });
-
-    // Initialize ElevenLabs Service
-    _createElevenLabsService({
-      apiKey: config.elevenlabs.apiKey,
-      maxRetries: 3,
-      timeout: 30000,
-    });
-
-    // Initialize Whisper Service (uses OpenAI)
-    _createWhisperService({
-      apiKey: config.whisper.apiKey,
-      maxRetries: 3,
-      timeout: 120000,
-    });
-
-    // Initialize DALL-E Service (uses OpenAI)
-    _createDalleService({
-      apiKey: config.dalle.apiKey,
-      maxRetries: 3,
-      timeout: 60000,
-    });
-
-    // Initialize S3 Service
-    _createS3Service({
-      accessKeyId: config.s3.accessKeyId,
-      secretAccessKey: config.s3.secretAccessKey,
-      region: config.s3.region,
-      bucketName: config.s3.bucketName,
-    });
-
-    // Initialize Remotion Service
-    __createRemotionService({
-      compositionsPath: config.remotion.compositionsPath,
-      outputDir: config.remotion.outputDir,
-      lambdaRegion: config.remotion.lambdaRegion,
-      lambdaRole: config.remotion.lambdaRole,
-      concurrency: 4,
-      quality: 80,
-    });
-
-    console.log('[AI Services] All services initialized successfully');
+    console.log('[AI Services] Initializing standardized service registry...');
+    await serviceRegistry.initialize();
+    console.log('[AI Services] All services initialized successfully using new patterns');
   } catch (error) {
-    console.error('[AI Services] Failed to initialize services:', error);
+    console.error('[AI Services] Failed to initialize service registry:', error);
     throw new Error(`Service initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
-// Test all services connectivity
+// Test all services connectivity using standardized patterns
 export async function testAllServices(): Promise<{ [service: string]: boolean }> {
-  const results: { [service: string]: boolean } = {};
-
   try {
-    console.log('[AI Services] Testing service connectivity...');
-
-    // Test OpenAI
-    try {
-      const openai = _getOpenAIService();
-      results.openai = await openai.testConnection();
-    } catch (error) {
-      console.warn('[AI Services] OpenAI service not initialized');
-      results.openai = false;
-    }
-
-    // Test ElevenLabs
-    try {
-      const elevenlabs = _getElevenLabsService();
-      results.elevenlabs = await elevenlabs.testConnection();
-    } catch (error) {
-      console.warn('[AI Services] ElevenLabs service not initialized');
-      results.elevenlabs = false;
-    }
-
-    // Test Whisper
-    try {
-      const whisper = _getWhisperService();
-      results.whisper = await whisper.testConnection();
-    } catch (error) {
-      console.warn('[AI Services] Whisper service not initialized');
-      results.whisper = false;
-    }
-
-    // Test DALL-E
-    try {
-      const dalle = _getDalleService();
-      results.dalle = await dalle.testConnection();
-    } catch (error) {
-      console.warn('[AI Services] DALL-E service not initialized');
-      results.dalle = false;
-    }
-
-    // Test S3
-    try {
-      const s3 = _getS3Service();
-      results.s3 = await s3.testConnection();
-    } catch (error) {
-      console.warn('[AI Services] S3 service not initialized');
-      results.s3 = false;
-    }
-
-    // Test Remotion
-    try {
-      const remotion = __getRemotionService();
-      results.remotion = await remotion.testConnection();
-    } catch (error) {
-      console.warn('[AI Services] Remotion service not initialized');
-      results.remotion = false;
-    }
-
+    console.log('[AI Services] Testing service connectivity using standardized patterns...');
+    const results = await serviceRegistry.testAllServices();
     console.log('[AI Services] Service connectivity test completed:', results);
     return results;
   } catch (error) {
@@ -251,7 +104,24 @@ export async function testAllServices(): Promise<{ [service: string]: boolean }>
   }
 }
 
-// Utility functions for common workflows
+// Get service using standardized registry
+export async function getAIService<T>(token: string): Promise<T> {
+  return await serviceRegistry.getService<T>(token as any);
+}
+
+// Get service health status
+export async function getServicesHealthStatus() {
+  return await serviceRegistry.getHealthStatus();
+}
+
+// Shutdown all services
+export async function shutdownAIServices(): Promise<void> {
+  await serviceRegistry.shutdown();
+}
+
+/**
+ * NEW WORKFLOW UTILITIES WITH STANDARDIZED SERVICE ACCESS
+ */
 export class AIWorkflowUtils {
   static async generateVideoScript(
     topic: string,
@@ -259,13 +129,13 @@ export class AIWorkflowUtils {
     duration: number,
     language: string = 'en'
   ) {
-    const openai = _getOpenAIService();
+    const openai = await serviceRegistry.getService(SERVICE_TOKENS.OPENAI);
     return await openai.generateScript({
       videoType,
       topic,
       duration,
       language,
-      tone: 'engaging',
+      tone: 'professional',
     });
   }
 
@@ -275,7 +145,7 @@ export class AIWorkflowUtils {
     gender: 'male' | 'female' = 'female',
     style: 'professional' | 'casual' | 'energetic' = 'professional'
   ) {
-    const elevenlabs = _getElevenLabsService();
+    const elevenlabs = await serviceRegistry.getService(SERVICE_TOKENS.ELEVENLABS);
     const voiceId = elevenlabs.getSuggestedVoice(language, gender, style);
     const voiceSettings = elevenlabs.getOptimalVoiceSettings(language);
 
@@ -290,7 +160,7 @@ export class AIWorkflowUtils {
     audioFile: string | Buffer,
     language?: string
   ) {
-    const whisper = _getWhisperService();
+    const whisper = await serviceRegistry.getService(SERVICE_TOKENS.WHISPER);
     return await whisper.generateWebVTT(audioFile, {
       maxLineLength: 40,
       maxLinesPerCaption: 2,
@@ -303,7 +173,7 @@ export class AIWorkflowUtils {
     mood: string,
     aspectRatio: '16:9' | '9:16' | '1:1' = '9:16'
   ) {
-    const dalle = _getDalleService();
+    const dalle = await serviceRegistry.getService(SERVICE_TOKENS.DALLE);
     return await dalle.generateVideoBackground({
       theme: theme as any,
       mood: mood as any,
@@ -317,8 +187,8 @@ export class AIWorkflowUtils {
     userId: string,
     assetType: 'audio' | 'image' | 'font' | 'subtitle'
   ) {
-    const s3 = _getS3Service();
-    const fileName = require('path').basename(filePath);
+    const s3 = await serviceRegistry.getService(SERVICE_TOKENS.S3);
+    const fileName = filePath.split('/').pop() || 'unknown';
     const key = s3.generateAssetKey(userId, assetType, fileName);
 
     return await s3.uploadFile(filePath, {
@@ -334,8 +204,8 @@ export class AIWorkflowUtils {
     userId: string,
     videoId: string
   ) {
-    const remotion = __getRemotionService();
-    const s3 = __getS3Service();
+    const remotion = await serviceRegistry.getService(SERVICE_TOKENS.REMOTION);
+    const s3 = await serviceRegistry.getService(SERVICE_TOKENS.S3);
 
     // Render video
     const renderResult = await remotion.renderFromTemplate(templateId, props);
@@ -359,6 +229,9 @@ export class AIWorkflowUtils {
     return renderResult;
   }
 }
+
+// Export the service registry for direct access
+export { serviceRegistry };
 
 // Export the utility class
 export default AIWorkflowUtils;

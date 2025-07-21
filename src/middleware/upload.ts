@@ -1,6 +1,9 @@
+// External dependencies
 import multer from 'multer';
-import path from 'path';
+
+// Node.js built-in modules
 import fs from 'fs';
+import path from 'path';
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -24,7 +27,7 @@ const fileFilter = (req: any, file: any, cb: any) => {
     if (allowedVideoTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid video file type'), false);
+      cb(null, false);
     }
   }
   // Allow audio files
@@ -33,7 +36,7 @@ const fileFilter = (req: any, file: any, cb: any) => {
     if (allowedAudioTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid audio file type'), false);
+      cb(null, false);
     }
   }
   // Allow image files
@@ -42,11 +45,11 @@ const fileFilter = (req: any, file: any, cb: any) => {
     if (allowedImageTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid image file type'), false);
+      cb(null, false);
     }
   }
   else {
-    cb(new Error('Invalid field name'), false);
+    cb(null, false);
   }
 };
 
@@ -67,7 +70,7 @@ export const videoUpload = multer({
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid video file type'), false);
+      cb(null, false);
     }
   },
   limits: {
@@ -82,7 +85,7 @@ export const audioUpload = multer({
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid audio file type'), false);
+      cb(null, false);
     }
   },
   limits: {
@@ -97,7 +100,7 @@ export const imageUpload = multer({
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid image file type'), false);
+      cb(null, false);
     }
   },
   limits: {
