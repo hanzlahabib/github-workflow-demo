@@ -61,6 +61,8 @@ export interface QuizGenerationRequest {
 
 class OpenAIService extends BaseService {
   private client: OpenAI;
+  private readonly maxRetries: number;
+  private readonly timeout: number;
 
   constructor(config: OpenAIConfig) {
     super({
@@ -68,6 +70,9 @@ class OpenAIService extends BaseService {
       version: '1.0.0',
       ...config
     });
+
+    this.maxRetries = config.maxRetries || 3;
+    this.timeout = config.timeout || 30000;
 
     this.validateConfig(config);
 

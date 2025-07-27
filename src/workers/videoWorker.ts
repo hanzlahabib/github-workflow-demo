@@ -1,7 +1,6 @@
 import { Worker, Job } from 'bullmq';
 import { connection } from '../config/redis';
 // import { Video, Job as JobModel } from '../models'; // Disabled for testing without database
-import { getRemotionService } from '../services/remotion';
 import { VideoService } from '../services/videoService';
 // import { getOpenAIService } from '../services/openai';
 // import { getElevenLabsService } from '../services/elevenlabs';
@@ -28,42 +27,21 @@ export const videoWorker = new Worker(
       // Skip database lookups for testing
       console.log(`[VideoWorker] Processing ${type} video with input:`, input);
 
-      await updateJobProgress(job, 10, 'Preparing render data...');
+      await updateJobProgress(job, 10, 'Starting video generation...');
 
-      // Use VideoService to properly transform input data
-      console.log(`[VideoWorker] Creating VideoService instance...`);
+      // ✅ SIMPLE: Use VideoService directly - it handles everything
+      console.log(`[VideoWorker] Starting video generation with VideoService...`);
       const videoService = new VideoService();
 
-      await updateJobProgress(job, 20, 'Transforming input data...');
-
-      // Use the proper prepareInputProps method that handles enhanced config
-      const renderData = await videoService.prepareInputProps({
+      // ✅ FIXED: Use the NEW VideoService that has the actual copied composition
+      const videoResult = await videoService.generateVideo({
         type: type as any,
         input: input,
         settings: settings,
         userId: userId
-      });
-
-      console.log(`[VideoWorker] Transformed render data:`, JSON.stringify(renderData, null, 2));
-
-      await updateJobProgress(job, 30, 'Setting up Remotion render...');
-
-      await updateJobProgress(job, 50, 'Rendering video...');
-      console.log(`[VideoWorker] Starting Remotion render with data:`, renderData);
-
-      const remotionService = getRemotionService();
-      const videoResult = await remotionService.renderVideo({
-        compositionId: 'ChatReel',
-        inputProps: renderData,
-        width: 1080,
-        height: 1920,
-        fps: 30,
-        codec: 'h264'
       }, (progress) => {
         console.log(`[VideoWorker] Render progress:`, progress);
-        if (progress.progress) {
-          updateJobProgress(job, Math.min(50 + (progress.progress * 0.4), 90), progress.message || 'Rendering...');
-        }
+        updateJobProgress(job, Math.min(10 + (progress.progress * 0.8), 95), progress.message || 'Rendering...');
       });
 
       await updateJobProgress(job, 95, 'Finalizing...');

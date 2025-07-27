@@ -8,6 +8,8 @@ import { RenderInternals } from '@remotion/renderer';
 import path from 'path';
 import fs from 'fs/promises';
 import { createWriteStream } from 'fs';
+import { cacheManager } from './cacheManager';
+import type { R2UrlDetectionResult } from '../types/videoCache';
 
 export interface VideoGenerationRequest {
   type: 'story' | 'reddit' | 'quiz' | 'educational' | 'text-story';
@@ -38,11 +40,17 @@ export interface VideoGenerationResult {
   height?: number;
   renderTimeMs?: number;
   error?: string;
+  cacheInfo?: {
+    hadR2Videos: boolean;
+    cachedUrls: number;
+    cacheProcessingTimeMs: number;
+    urlMappings: Record<string, string>;
+  };
 }
 
 export interface ProgressCallback {
   (progress: {
-    phase: 'bundling' | 'rendering' | 'encoding' | 'completed';
+    phase: 'caching' | 'bundling' | 'rendering' | 'encoding' | 'completed';
     progress: number; // 0-100
     message: string;
     renderedFrames?: number;
@@ -54,11 +62,45 @@ export class VideoService {
   private videoServicePath: string;
   private rendersDir: string;
   private bundlePath?: string;
+  private cacheInitialized = false;
 
   constructor() {
-    this.videoServicePath = path.resolve(__dirname, '../../../reelspeed-video-service');
-    this.rendersDir = path.join(this.videoServicePath, 'renders');
+    // 🚀 SUBDOMAIN SUPPORT: Use environment variable for video service path
+    const videoServiceUrl = process.env.VIDEO_SERVICE_PATH || process.env.VIDEO_SERVICE_URL;
+    
+    if (videoServiceUrl && (videoServiceUrl.startsWith('http://') || videoServiceUrl.startsWith('https://'))) {
+      // For subdomain deployment - use HTTP video service
+      console.log(`[VideoService] 🌐 Using remote video service: ${videoServiceUrl}`);
+      this.videoServicePath = videoServiceUrl;
+      this.rendersDir = '/tmp/video-renders'; // Use temp directory for remote mode
+    } else {
+      // For local development - use file system path
+      this.videoServicePath = videoServiceUrl || path.resolve(__dirname, '../../../reelspeed-video-service');
+      this.rendersDir = path.join(this.videoServicePath, 'renders');
+      console.log(`[VideoService] 📁 Using local video service: ${this.videoServicePath}`);
+    }
+    
     this.ensureRendersDirectory();
+  }
+
+  /**
+   * Initialize the video cache system
+   */
+  async initializeCache(): Promise<void> {
+    if (this.cacheInitialized) {
+      return;
+    }
+
+    try {
+      console.log('[VideoService] Initializing R2 video cache system...');
+      await cacheManager.initialize();
+      this.cacheInitialized = true;
+      console.log('[VideoService] R2 video cache system initialized successfully');
+    } catch (error) {
+      console.error('[VideoService] Failed to initialize cache system:', error);
+      // Don't throw - video service should work without cache
+      console.warn('[VideoService] Continuing without cache system - R2 videos may cause timeouts');
+    }
   }
 
   private async ensureRendersDirectory() {
@@ -71,9 +113,17 @@ export class VideoService {
   }
 
   private async getBundle(): Promise<string> {
-    if (this.bundlePath) {
-      return this.bundlePath;
+    // 🚀 SUBDOMAIN SUPPORT: Check if using remote video service
+    if (this.videoServicePath.startsWith('http://') || this.videoServicePath.startsWith('https://')) {
+      console.log('[VideoService] 🌐 Remote video service detected - skipping local bundling');
+      return this.videoServicePath; // Return URL instead of bundle path
     }
+
+    // ✅ FORCE FRESH BUNDLE: Always create new bundle to pick up code changes
+    // TODO: Re-enable caching for production by checking NODE_ENV
+    // if (this.bundlePath) {
+    //   return this.bundlePath;
+    // }
 
     console.log('[VideoService] Bundling Remotion project...');
 
@@ -100,25 +150,109 @@ export class VideoService {
 
   private getCompositionId(type: string): string {
     const compositionMap: { [key: string]: string } = {
-      story: 'ChatReel', // Use ChatReel for story type with enhanced config support
+      story: 'text-story', // ✅ FIXED: Use text-story composition from video service
+      'text-story': 'text-story', // Support direct text-story type
       reddit: 'RedditVideo',
       quiz: 'QuizVideo',
       educational: 'EducationalVideo'
     };
 
-    const selectedComposition = compositionMap[type] || 'ChatReel';
+    const selectedComposition = compositionMap[type] || 'text-story';
 
     console.log(`[VideoService] 🎬 COMPOSITION MAPPING DEBUG:`);
     console.log(`[VideoService] Input type: "${type}"`);
     console.log(`[VideoService] Available mappings:`, compositionMap);
     console.log(`[VideoService] Selected composition: "${selectedComposition}"`);
-    console.log(`[VideoService] ✅ This should be "ChatReel" for enhanced config support`);
+    console.log(`[VideoService] ✅ Now using "text-story" composition with direct config passthrough`);
 
     return selectedComposition;
   }
 
-  public prepareInputProps(request: VideoGenerationRequest): any {
+  /**
+   * Process video config to cache and optimize R2 videos before rendering
+   */
+  async processConfigForCaching(request: VideoGenerationRequest, onProgress?: ProgressCallback): Promise<{
+    processedConfig: any;
+    cacheResult: R2UrlDetectionResult;
+    processingTimeMs: number;
+  }> {
+    const startTime = Date.now();
+    
+    // Initialize cache if not already done
+    if (!this.cacheInitialized) {
+      onProgress?.({
+        phase: 'caching',
+        progress: 2,
+        message: 'Initializing enhanced video cache and optimization system...'
+      });
+      await this.initializeCache();
+    }
+
+    if (!this.cacheInitialized) {
+      console.warn('[VideoService] Cache system not available, using original config');
+      return {
+        processedConfig: request.input.config,
+        cacheResult: {
+          hasR2Urls: false,
+          r2Urls: [],
+          updatedConfig: request.input.config,
+          urlMappings: {}
+        },
+        processingTimeMs: Date.now() - startTime
+      };
+    }
+
+    onProgress?.({
+      phase: 'caching',
+      progress: 5,
+      message: 'Scanning config for R2 videos and optimizing...'
+    });
+
+    try {
+      // Process the config to cache and optimize R2 videos
+      const cacheResult = await cacheManager.processVideoConfig(request.input.config);
+      
+      if (cacheResult.hasR2Urls) {
+        console.log(`[VideoService] ✅ Cached and optimized ${cacheResult.r2Urls.length} R2 videos for timeout-free rendering`);
+        onProgress?.({
+          phase: 'caching',
+          progress: 15,
+          message: `Cached and optimized ${cacheResult.r2Urls.length} R2 videos successfully`
+        });
+      } else {
+        console.log('[VideoService] No R2 videos found in config');
+        onProgress?.({
+          phase: 'caching',
+          progress: 15,
+          message: 'No R2 videos to optimize'
+        });
+      }
+
+      return {
+        processedConfig: cacheResult.updatedConfig,
+        cacheResult,
+        processingTimeMs: Date.now() - startTime
+      };
+
+    } catch (error) {
+      console.error('[VideoService] Failed to process config for caching and optimization:', error);
+      // Fall back to original config
+      return {
+        processedConfig: request.input.config,
+        cacheResult: {
+          hasR2Urls: false,
+          r2Urls: [],
+          updatedConfig: request.input.config,
+          urlMappings: {}
+        },
+        processingTimeMs: Date.now() - startTime
+      };
+    }
+  }
+
+  public prepareInputProps(request: VideoGenerationRequest, processedConfig?: any): any {
     const { input, settings, type } = request;
+    const configToUse = processedConfig || input.config;
 
     console.log('[VideoService] 🔍 prepareInputProps called with FULL request:', {
       type,
@@ -126,44 +260,201 @@ export class VideoService {
       input: input,
       inputKeys: Object.keys(input),
       hasInputConfig: !!input.config,
-      configKeys: input.config ? Object.keys(input.config) : 'no config',
+      hasProcessedConfig: !!processedConfig,
+      configKeys: configToUse ? Object.keys(configToUse) : 'no config',
       settingsKeys: Object.keys(settings)
     });
 
     // PRIORITY: Check if we have enhanced config from frontend
-    if (input.config) {
+    if (configToUse) {
       console.log('[VideoService] ✅ Enhanced config detected! Details:', {
-        title: input.config.title,
-        messagesCount: input.config.messages?.length || 0,
-        messagesPreview: input.config.messages?.slice(0, 2).map(m => ({ sender: m.sender, text: m.text?.substring(0, 50) + '...' })),
+        title: configToUse.title,
+        messagesCount: configToUse.messages?.length || 0,
+        messagesPreview: configToUse.messages?.slice(0, 2).map(m => ({ sender: m.sender, text: m.text?.substring(0, 50) + '...' })),
         peopleNames: {
-          left: input.config.people?.left?.name,
-          right: input.config.people?.right?.name
+          left: configToUse.people?.left?.name,
+          right: configToUse.people?.right?.name
         },
-        template: input.config.template,
-        chatOverlay: input.config.chatOverlay ? {
-          width: input.config.chatOverlay.width,
-          height: input.config.chatOverlay.height,
-          fontSize: input.config.chatOverlay.fontSize
-        } : 'none'
+        template: configToUse.template,
+        chatOverlay: configToUse.chatOverlay ? {
+          width: configToUse.chatOverlay.width,
+          height: configToUse.chatOverlay.height,
+          fontSize: configToUse.chatOverlay.fontSize
+        } : 'none',
+        usingCachedUrls: !!processedConfig
       });
 
-      const transformedProps = this.transformEnhancedConfigToChatReel(input.config, settings);
-      console.log('[VideoService] ✅ Transformed props for ChatReel:', {
-        videoId: transformedProps.videoId,
-        conversationId: transformedProps.conversation?.id,
-        processedMessagesCount: transformedProps.conversation?.processedMessages?.length || 0,
-        messageMetadataUsername: transformedProps.conversation?.messageMetadata?.username,
-        ui: transformedProps.conversation?.messageMetadata?.ui,
-        hasOverlaySettings: !!transformedProps.overlaySettings
+      // ✅ FIXED: Direct config passthrough - no transformation needed!
+      // CleanTextStoryComposition accepts TextStoryConfig directly
+      console.log('[VideoService] ✅ Passing config directly to text-story composition:', {
+        title: configToUse.title,
+        messagesCount: configToUse.messages?.length,
+        hasColorCustomization: !!configToUse.colorCustomization,
+        hasBackgroundSettings: !!configToUse.backgroundSettings,
+        hasChatOverlay: !!configToUse.chatOverlay,
+        configKeys: Object.keys(configToUse),
+        cacheProcessed: !!processedConfig
       });
 
-      return transformedProps;
+      
+      // ✅ COMPLETE CONFIGURATION TEMPLATE: Use tested working config structure
+      const completeConfig = {
+        ...configToUse,
+        
+        // Core required settings with working defaults
+        template: configToUse.template || 'modern-light',
+        
+        // Animation settings - complete structure
+        animationSettings: {
+          messageAnimationType: 'slide',
+          animationSpeed: 'normal',
+          transitionDuration: 500,
+          baseDelay: 1000,
+          messageDelay: 2000,
+          bounceIntensity: 0.5,
+          enablePhysics: false,
+          swipeAnimations: false,
+          parallaxEffect: false,
+          morphingText: false,
+          showMessageAnimations: true,
+          ...configToUse.animationSettings
+        },
+        
+        // Background settings with complete structure
+        backgroundSettings: {
+          backgroundType: 'gradient',
+          backgroundUrl: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          backgroundOpacity: 100,
+          backgroundBlur: false,
+          greenScreen: false,
+          musicVolume: 0,
+          videoVolume: 0,
+          ...configToUse.backgroundSettings
+        },
+        
+        // Color customization - complete structure
+        colorCustomization: {
+          accentColor: '#007AFF',
+          primaryColor: '#000000',
+          secondaryColor: '#FFFFFF',
+          backgroundColor: '#F0F0F0',
+          textColor: '#000000',
+          bubbleColorLeft: '#E5E5EA',
+          bubbleColorRight: '#007AFF',
+          textColorLeft: '#000000',
+          textColorRight: '#FFFFFF',
+          ...configToUse.colorCustomization
+        },
+        
+        // Chat overlay settings - complete structure
+        chatOverlay: {
+          width: 350,
+          height: 600,
+          horizontalPosition: 'center', // ✅ CRITICAL: This was missing
+          verticalPosition: 'center',
+          fontSize: 16,
+          borderRadius: 18,
+          opacity: 100,
+          padding: 20,
+          backgroundColor: 'rgba(255,255,255,0.95)',
+          ...configToUse.chatOverlay
+        },
+        
+        // Voice audio settings
+        voiceAudioSettings: {
+          voiceVolume: 100,
+          masterVolume: 80,
+          enableAudio: false, // Disable to avoid audio loading issues in test
+          ...configToUse.voiceAudioSettings
+        },
+        
+        // Video settings
+        videoSettings: {
+          duration: settings.duration || 10,
+          resolution: '1080x1920',
+          fps: 30,
+          quality: 'high',
+          greenScreen: false,
+          brainrotMode: false,
+          ...configToUse.videoSettings
+        },
+        
+        // Visual effects settings
+        visualEffectsSettings: {
+          screenShake: false,
+          particleEffects: false,
+          glitchEffects: false,
+          messageGlow: false,
+          pulseEffects: false,
+          backgroundBlur: false,
+          neonEffects: false,
+          matrixRain: false,
+          fireEffects: false,
+          hologramMode: false,
+          ...configToUse.visualEffectsSettings
+        },
+        
+        // Notification settings
+        notificationSettings: {
+          showNotifications: false, // Disable to avoid audio/notification issues
+          notificationStyle: 'ios',
+          soundEnabled: false,
+          vibrationEnabled: false,
+          animationType: 'slide',
+          ...configToUse.notificationSettings
+        },
+        
+        // Chat simulation settings
+        chatSimulationSettings: {
+          showReadReceipts: true,
+          showTypingIndicators: true,
+          showTimestamps: false,
+          enableReactions: false,
+          simulateDelay: true,
+          showOnlineStatus: false,
+          showLastSeen: false,
+          enableMessageSearch: false,
+          showMessageStatus: true,
+          simulateNetworkDelay: false,
+          ...configToUse.chatSimulationSettings
+        },
+        
+        // Captions
+        captions: {
+          enabled: false,
+          autoGenerate: false,
+          language: 'en',
+          style: {
+            fontSize: 16,
+            fontFamily: 'Arial',
+            fontColor: '#FFFFFF',
+            backgroundColor: '#000000',
+            backgroundOpacity: 0.7,
+            position: 'bottom',
+            animation: 'fade'
+          },
+          lines: [],
+          ...configToUse.captions
+        }
+      };
+      
+      console.log('[VideoService] ✅ Complete configuration with defaults applied:', {
+        hasAnimationSettings: !!completeConfig.animationSettings,
+        hasBaseDelay: !!completeConfig.animationSettings?.baseDelay,
+        hasNotificationSettings: !!completeConfig.notificationSettings,
+        hasChatSimulationSettings: !!completeConfig.chatSimulationSettings
+      });
+
+      // Return the complete config with a config wrapper for Remotion
+      return {
+        config: completeConfig // Pass the complete TextStoryConfig with all defaults
+      };
     }
 
     // ❌ NO FALLBACKS - Enhanced config is required
     console.error('[VideoService] ❌ CRITICAL: No enhanced config provided!', {
       hasInputConfig: !!input.config,
+      hasProcessedConfig: !!processedConfig,
       inputKeys: Object.keys(input),
       inputText: input.text?.substring(0, 100) + '...'
     });
@@ -171,6 +462,8 @@ export class VideoService {
     throw new Error('Enhanced config is required for video generation. Legacy text parsing has been removed. Please use generateVideoFromConfig() from the frontend.');
   }
 
+  // ❌ DEPRECATED: This function is no longer used since we now pass config directly to text-story composition
+  // TODO: Remove this entire function in a future cleanup
   private transformEnhancedConfigToChatReel(config: any, settings: any): any {
     console.log('[VideoService] 🔄 Transforming enhanced config to ChatReel format');
     console.log('[VideoService] Raw input config structure:', {
@@ -429,52 +722,6 @@ export class VideoService {
       }
     };
 
-    console.log('[VideoService] Final ChatReel props with ALL settings:', {
-      videoId: chatReelProps.videoId,
-      conversationUsername: chatReelProps.conversation.messageMetadata.username,
-      enableAudio: chatReelProps.enableAudio,
-      masterVolume: chatReelProps.masterVolume,
-      showNotifications: chatReelProps.showNotifications,
-      showTypingIndicators: chatReelProps.showTypingIndicators,
-      showMessageAnimations: chatReelProps.showMessageAnimations,
-      baseDelay: chatReelProps.baseDelay,
-      duration: chatReelProps.duration,
-      overlaySettings: chatReelProps.overlaySettings,
-      // NEW: Log all advanced settings
-      notificationSettings: {
-        style: chatReelProps.notificationSettings.notificationStyle,
-        soundEnabled: chatReelProps.notificationSettings.soundEnabled,
-        animationType: chatReelProps.notificationSettings.animationType
-      },
-      chatSimulationSettings: {
-        readReceipts: chatReelProps.chatSimulationSettings.showReadReceipts,
-        typingIndicators: chatReelProps.chatSimulationSettings.showTypingIndicators,
-        onlineStatus: chatReelProps.chatSimulationSettings.showOnlineStatus,
-        reactions: chatReelProps.chatSimulationSettings.enableReactions
-      },
-      visualEffectsSettings: {
-        screenShake: chatReelProps.visualEffectsSettings.screenShake,
-        messageGlow: chatReelProps.visualEffectsSettings.messageGlow,
-        particleEffects: chatReelProps.visualEffectsSettings.particleEffects,
-        neonEffects: chatReelProps.visualEffectsSettings.neonEffects
-      },
-      captionSettings: {
-        enabled: chatReelProps.captionSettings.enabled,
-        language: chatReelProps.captionSettings.language,
-        position: chatReelProps.captionSettings.style.position
-      },
-      advancedSettings: {
-        greenScreen: chatReelProps.advancedSettings.greenScreenMode,
-        brainrot: chatReelProps.advancedSettings.brainrotMode,
-        highQuality: chatReelProps.advancedSettings.highQualityMode
-      },
-      enhancedAnimationSettings: {
-        type: chatReelProps.enhancedAnimationSettings.messageAnimationType,
-        speed: chatReelProps.enhancedAnimationSettings.animationSpeed,
-        physics: chatReelProps.enhancedAnimationSettings.enablePhysics
-      }
-    });
-
     return chatReelProps;
   }
 
@@ -486,43 +733,60 @@ export class VideoService {
     const videoId = `${request.type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const outputPath = path.join(this.rendersDir, `${videoId}.mp4`);
 
+    // Declare variables outside try block so they're accessible in catch
+    let bundleLocation: string;
+    let composition: any;
+    let inputProps: any;
+    let cacheInfo: VideoGenerationResult['cacheInfo'];
+
     try {
-      console.log(`[VideoService] Starting video generation:`, {
+      console.log(`[VideoService] Starting video generation with R2 cache:`, {
         type: request.type,
         userId: request.userId,
         videoId
       });
 
+      // Phase 0: Cache Processing (NEW)
+      console.log('[VideoService] 🚀 Phase 0: R2 Video Cache Processing...');
+      const cacheProcessing = await this.processConfigForCaching(request, onProgress);
+      
+      cacheInfo = {
+        hadR2Videos: cacheProcessing.cacheResult.hasR2Urls,
+        cachedUrls: cacheProcessing.cacheResult.r2Urls.length,
+        cacheProcessingTimeMs: cacheProcessing.processingTimeMs,
+        urlMappings: cacheProcessing.cacheResult.urlMappings
+      };
+
+      console.log('[VideoService] ✅ Cache processing completed:', cacheInfo);
+
       // Phase 1: Bundling
       onProgress?.({
         phase: 'bundling',
-        progress: 5,
+        progress: 20,
         message: 'Preparing Remotion bundle...'
       });
 
-      const bundleLocation = await this.getBundle();
+      bundleLocation = await this.getBundle();
 
       onProgress?.({
         phase: 'bundling',
-        progress: 20,
+        progress: 35,
         message: 'Bundle ready, getting composition...'
       });
 
-      // Phase 2: Get composition
+      // Phase 2: Get composition (with processed config)
       const compositionId = this.getCompositionId(request.type);
-      const inputProps = this.prepareInputProps(request);
+      inputProps = this.prepareInputProps(request, cacheProcessing.processedConfig);
 
       console.log(`[VideoService] 🎯 COMPOSITION SELECTION DEBUG:`);
       console.log(`[VideoService] Request type: "${request.type}"`);
       console.log(`[VideoService] Selected composition ID: "${compositionId}"`);
-      console.log(`[VideoService] Should be "ChatReel" for story type`);
       console.log(`[VideoService] Input props overview:`, {
-        hasConversation: !!inputProps.conversation,
-        hasOverlaySettings: !!inputProps.overlaySettings,
+        hasConfig: !!inputProps.config,
         propsKeys: Object.keys(inputProps)
       });
 
-      const composition = await selectComposition({
+      composition = await selectComposition({
         serveUrl: bundleLocation,
         id: compositionId,
         inputProps,
@@ -538,30 +802,32 @@ export class VideoService {
 
       onProgress?.({
         phase: 'rendering',
-        progress: 30,
-        message: `Rendering ${composition.durationInFrames} frames...`
+        progress: 45,
+        message: `Rendering ${composition.durationInFrames} frames${cacheInfo?.hadR2Videos ? ' (using cached videos)' : ''}...`
       });
 
-      // Phase 3: Render video
+      // Phase 3: Render video with cached R2 videos (should be much faster now!)
       const renderResult = await renderMedia({
         composition,
         serveUrl: bundleLocation,
         codec: 'h264',
         outputLocation: outputPath,
         inputProps,
+        // ✅ REDUCED TIMEOUT: With cached videos, we don't need as long
+        timeoutInMilliseconds: cacheInfo?.hadR2Videos ? 60000 : 120000, // 1 min for cached, 2 min for uncached
         onProgress: ({ renderedFrames, encodedFrames, progress: renderProgress }) => {
           const totalFrames = composition.durationInFrames;
-          const progress = Math.round(renderProgress * 60) + 30; // 30-90%
+          const progress = Math.round(renderProgress * 45) + 45; // 45-90%
           onProgress?.({
             phase: 'rendering',
             progress,
-            message: `Rendered ${renderedFrames}/${totalFrames} frames`,
+            message: `Rendered ${renderedFrames}/${totalFrames} frames${cacheInfo?.hadR2Videos ? ' (cached)' : ''}`,
             renderedFrames,
             totalFrames
           });
         },
         onDownload: (src) => {
-          console.log(`[VideoService] Downloaded: ${src}`);
+          console.log(`[VideoService] ${cacheInfo?.hadR2Videos ? 'Serving cached video' : 'Downloaded'}: ${src}`);
         },
       });
 
@@ -595,11 +861,97 @@ export class VideoService {
         durationInSeconds: composition.durationInFrames / composition.fps,
         width: composition.width,
         height: composition.height,
-        renderTimeMs
+        renderTimeMs,
+        cacheInfo
       };
 
     } catch (error) {
-      console.error(`[VideoService] Generation failed:`, error);
+      // Enhanced error logging and handling for R2 download issues
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const isR2DownloadError = errorMessage.includes('Error while downloading') && 
+                                errorMessage.includes('.r2.dev');
+      const isAggregateError = errorMessage.includes('AggregateError') || 
+                               errorMessage.includes('internalConnectMultiple');
+      
+      if ((isR2DownloadError || isAggregateError) && bundleLocation && composition && inputProps) {
+        console.error(`[VideoService] 🚨 R2 Download Error Detected:`, {
+          errorType: isAggregateError ? 'AggregateError' : 'R2DownloadError',
+          errorMessage: errorMessage.substring(0, 200) + '...',
+          timestamp: new Date().toISOString(),
+          suggestion: 'Video will be generated with gradient background fallback'
+        });
+        
+        // For R2 errors, try generating without video background
+        console.log('[VideoService] 🔄 Retrying video generation with fallback settings...');
+        
+        try {
+          // Modify input props to use gradient background instead of video
+          const fallbackInputProps = {
+            ...inputProps,
+            config: {
+              ...inputProps.config,
+              backgroundSettings: {
+                ...inputProps.config.backgroundSettings,
+                backgroundType: 'gradient',
+                backgroundUrl: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                backgroundOpacity: 100,
+                backgroundBlur: false
+              }
+            }
+          };
+          
+          console.log('[VideoService] 🎨 Using gradient fallback for background');
+          
+          // Retry render with fallback settings
+          const fallbackResult = await renderMedia({
+            composition,
+            serveUrl: bundleLocation,
+            codec: 'h264',
+            outputLocation: outputPath,
+            inputProps: fallbackInputProps,
+            // ✅ CRITICAL: Add timeout for fallback rendering too
+            timeoutInMilliseconds: 120000, // 2 minutes
+            onProgress: ({ renderedFrames, encodedFrames, progress: renderProgress }) => {
+              const totalFrames = composition.durationInFrames;
+              const progress = Math.round(renderProgress * 60) + 30; // 30-90%
+              onProgress?.({
+                phase: 'rendering',
+                progress,
+                message: `Rendering with fallback background... ${renderedFrames}/${totalFrames}`,
+                renderedFrames,
+                totalFrames
+              });
+            }
+          });
+          
+          console.log('[VideoService] ✅ Fallback render completed successfully');
+          
+          const stats = await fs.stat(outputPath);
+          const renderTimeMs = Date.now() - startTime;
+          
+          return {
+            success: true,
+            outputPath,
+            sizeInBytes: stats.size,
+            durationInSeconds: composition.durationInFrames / composition.fps,
+            width: composition.width,
+            height: composition.height,
+            renderTimeMs,
+            cacheInfo
+          };
+          
+        } catch (fallbackError) {
+          console.error('[VideoService] ❌ Fallback render also failed:', fallbackError);
+          // Fall through to original error handling
+        }
+      }
+      
+      console.error(`[VideoService] Generation failed:`, {
+        errorMessage,
+        errorStack: error instanceof Error ? error.stack : 'No stack trace',
+        inputType: request.type,
+        timestamp: new Date().toISOString()
+      });
 
       // Clean up partial files
       try {
