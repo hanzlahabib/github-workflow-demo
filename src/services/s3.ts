@@ -81,10 +81,12 @@ class S3Service {
   private s3: S3Client;
   private bucketName: string;
   private region: string;
+  private publicUrl?: string;
 
   constructor(config: S3Config) {
     this.bucketName = config.bucketName;
     this.region = config.region;
+    this.publicUrl = config.publicUrl;
 
     this.s3 = new S3Client({
       region: config.region,
@@ -132,7 +134,7 @@ class S3Service {
 
       console.log(`[S3] File uploaded successfully: ${key}`);
 
-      const location = `https://${this.bucketName}.s3.${this.region}.amazonaws.com/${key}`;
+      const location = this.getPublicUrl(key);
       return {
         key,
         url: location,
@@ -171,7 +173,7 @@ class S3Service {
 
       console.log(`[S3] Buffer uploaded successfully: ${key}`);
 
-      const location = `https://${this.bucketName}.s3.${this.region}.amazonaws.com/${key}`;
+      const location = this.getPublicUrl(key);
       return {
         key,
         url: location,
@@ -535,6 +537,9 @@ class S3Service {
   }
 
   getPublicUrl(key: string): string {
+    if (this.publicUrl) {
+      return `${this.publicUrl}/${key}`;
+    }
     return `https://${this.bucketName}.s3.${this.region}.amazonaws.com/${key}`;
   }
 
@@ -611,7 +616,7 @@ class S3Service {
 
       // Generate appropriate URL based on ACL
       const url = config.acl === 'public-read'
-        ? `https://${config.bucket}.s3.${this.region}.amazonaws.com/${key}`
+        ? this.getPublicUrl(key)
         : await this.getSignedUrl(key, 'getObject', { expires: config.signedUrlExpiry });
 
       console.log(`[S3Audio] ${type} audio uploaded successfully: ${key}`);

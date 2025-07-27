@@ -185,6 +185,7 @@ function loadEnvironmentConfig(): EnvironmentConfig {
     R2_SECRET_ACCESS_KEY: process.env.CLOUDFLARE_R2_SECRET_KEY || process.env.R2_SECRET_ACCESS_KEY,
     R2_BUCKET_NAME: process.env.CLOUDFLARE_R2_BUCKET || process.env.R2_BUCKET_NAME,
     R2_ENDPOINT: process.env.CLOUDFLARE_R2_ENDPOINT || process.env.R2_ENDPOINT,
+    R2_PUBLIC_URL: process.env.CLOUDFLARE_R2_PUBLIC_URL || process.env.R2_PUBLIC_URL,
 
     // Remotion
     REMOTION_COMPOSITIONS_PATH: process.env.REMOTION_COMPOSITIONS_PATH || '../reelspeed-video-service/src/compositions',
@@ -315,7 +316,8 @@ function buildStorageConfig(env: EnvironmentConfig): StorageConfig {
       accessKey: env.R2_ACCESS_KEY_ID,
       secretKey: env.R2_SECRET_ACCESS_KEY,
       bucket: env.R2_BUCKET_NAME!,
-      endpoint: env.R2_ENDPOINT || `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
+      endpoint: env.R2_ENDPOINT || `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      publicUrl: env.R2_PUBLIC_URL
     };
   }
 

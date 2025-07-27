@@ -106,6 +106,7 @@ export interface S3Config {
   endpoint?: string;
   forcePathStyle?: boolean;
   signatureVersion?: string;
+  publicUrl?: string;
 }
 
 export interface S3UploadOptions {

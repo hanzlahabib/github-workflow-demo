@@ -1,0 +1,1170 @@
+{
+  "info": {
+    "name": "ReelSpeed API Collection",
+    "description": "Comprehensive API collection for ReelSpeed - AI-powered viral video generation platform.\n\n## Features\n- 🎙️ ElevenLabs voice generation\n- 📹 Video processing and generation  \n- 🔒 JWT authentication\n- 📱 Multi-platform content optimization\n- 🚀 S3/R2 asset management\n- 📊 Analytics and performance tracking\n\n## Environment Variables\nSet up these variables in your Postman environment:\n- `base_url`: http://localhost:3000 (or your API URL)\n- `auth_token`: Will be auto-set after login\n- `refresh_token`: Will be auto-set after login",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "reelspeed-api-collection",
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 0
+    }
+  },
+  "item": [
+    {
+      "name": "🔐 Authentication",
+      "description": "User authentication and authorization endpoints",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"SecurePass123!\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "Create a new user account with email and password"
+          },
+          "response": []
+        },
+        {
+          "name": "Login User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.tokens) {",
+                  "        pm.environment.set('auth_token', response.tokens.accessToken);",
+                  "        pm.environment.set('refresh_token', response.tokens.refreshToken);",
+                  "        console.log('Auth tokens saved to environment');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Authenticate user and return JWT tokens"
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.accessToken) {",
+                  "        pm.environment.set('auth_token', response.accessToken);",
+                  "        console.log('Access token refreshed');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "refresh"]
+            },
+            "description": "Get new access token using refresh token"
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "me"]
+            },
+            "description": "Get authenticated user's profile information"
+          },
+          "response": []
+        },
+        {
+          "name": "Update User Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Updated John\",\n  \"lastName\": \"Updated Doe\",\n  \"preferences\": {\n    \"theme\": \"dark\",\n    \"language\": \"en\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "profile"]
+            },
+            "description": "Update user's profile information"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🎙️ Voice Generation",
+      "description": "ElevenLabs voice generation and management",
+      "item": [
+        {
+          "name": "List All Voices",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "disabled": false
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/voices/list",
+              "host": ["{{base_url}}"],
+              "path": ["api", "voices", "list"]
+            },
+            "description": "Get all available ElevenLabs voices"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Voice Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "disabled": false
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/voices/pNInz6obpgDQGcFmaJgB",
+              "host": ["{{base_url}}"],
+              "path": ["api", "voices", "pNInz6obpgDQGcFmaJgB"]
+            },
+            "description": "Get detailed information about a specific voice"
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Voice Preview",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "disabled": false
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"voiceId\": \"pNInz6obpgDQGcFmaJgB\",\n  \"text\": \"Hello! This is a preview of this voice.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/voices/preview",
+              "host": ["{{base_url}}"],
+              "path": ["api", "voices", "preview"]
+            },
+            "description": "Generate a short audio preview for a voice"
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Message Speech",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "disabled": false
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messageId\": \"msg_123\",\n  \"text\": \"Hello there! How are you doing today? This is a longer message to test speech generation capabilities.\",\n  \"voiceId\": \"pNInz6obpgDQGcFmaJgB\",\n  \"language\": \"en\",\n  \"speed\": \"normal\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/voices/generate-message",
+              "host": ["{{base_url}}"],
+              "path": ["api", "voices", "generate-message"]
+            },
+            "description": "Generate speech audio for a specific message"
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Batch Speech",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "disabled": false
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    {\n      \"id\": \"msg_1\",\n      \"text\": \"Hello there!\",\n      \"voiceId\": \"pNInz6obpgDQGcFmaJgB\"\n    },\n    {\n      \"id\": \"msg_2\",\n      \"text\": \"How are you doing today?\",\n      \"voiceId\": \"pNInz6obpgDQGcFmaJgB\"\n    },\n    {\n      \"id\": \"msg_3\",\n      \"text\": \"This is great!\",\n      \"voiceId\": \"pNInz6obpgDQGcFmaJgB\"\n    }\n  ],\n  \"language\": \"en\",\n  \"speed\": \"normal\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/voices/generate-batch",
+              "host": ["{{base_url}}"],
+              "path": ["api", "voices", "generate-batch"]
+            },
+            "description": "Generate speech for multiple messages in batch"
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Voiceover Audio",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "disabled": false
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"script\": \"Welcome to our amazing product demonstration. Today we'll show you how AI can revolutionize your content creation process.\",\n  \"selectedVoiceId\": \"pNInz6obpgDQGcFmaJgB\",\n  \"stability\": 0.5,\n  \"similarity\": 0.8\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/voices/generate-voiceover-audio",
+              "host": ["{{base_url}}"],
+              "path": ["api", "voices", "generate-voiceover-audio"]
+            },
+            "description": "Generate voiceover audio for video content"
+          },
+          "response": []
+        },
+        {
+          "name": "Test ElevenLabs Connection",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "disabled": false
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/voices/test/connection",
+              "host": ["{{base_url}}"],
+              "path": ["api", "voices", "test", "connection"]
+            },
+            "description": "Test connectivity to ElevenLabs API"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Voice History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "disabled": false
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/voices/history?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "voices", "history"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Get voice generation history for user"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Cache Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "disabled": false
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/voices/cache/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "voices", "cache", "stats"]
+            },
+            "description": "Get voice cache statistics"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📹 Video Generation",
+      "description": "Video creation and processing endpoints",
+      "item": [
+        {
+          "name": "Generate Video",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.videoId) {",
+                  "        pm.environment.set('video_id', response.videoId);",
+                  "        console.log('Video ID saved:', response.videoId);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"story\",\n  \"input\": {\n    \"text\": \"This is an amazing story about AI and its impact on society\",\n    \"script\": \"Welcome to our video about artificial intelligence. Today we'll explore how AI is changing the world around us.\",\n    \"title\": \"AI Revolution: The Future is Now\",\n    \"config\": {\n      \"messages\": [],\n      \"people\": [],\n      \"settings\": {\n        \"theme\": \"modern\",\n        \"style\": \"professional\"\n      }\n    }\n  },\n  \"settings\": {\n    \"duration\": 30,\n    \"width\": 1080,\n    \"height\": 1920,\n    \"fps\": 30,\n    \"voice\": \"default\",\n    \"background\": \"#000000\",\n    \"language\": \"en\"\n  },\n  \"userId\": \"test_user_123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/video/generate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "video", "generate"]
+            },
+            "description": "Start video generation process with specified configuration"
+          },
+          "response": []
+        },
+        {
+          "name": "Check Video Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/video/status/{{video_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "video", "status", "{{video_id}}"]
+            },
+            "description": "Check the current status of video generation"
+          },
+          "response": []
+        },
+        {
+          "name": "List Rendered Videos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/video/renders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "video", "renders"]
+            },
+            "description": "Get list of all rendered video files"
+          },
+          "response": []
+        },
+        {
+          "name": "Download Video",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Range",
+                "value": "bytes=0-1023",
+                "disabled": true
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/video/download/sample_video.mp4",
+              "host": ["{{base_url}}"],
+              "path": ["api", "video", "download", "sample_video.mp4"]
+            },
+            "description": "Download/stream a rendered video file"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📁 Asset Management",
+      "description": "S3/R2 asset storage and retrieval",
+      "item": [
+        {
+          "name": "List Background Videos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/assets/videos/backgrounds",
+              "host": ["{{base_url}}"],
+              "path": ["api", "assets", "videos", "backgrounds"]
+            },
+            "description": "Get all available background videos from R2 storage"
+          },
+          "response": []
+        },
+        {
+          "name": "List User Videos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/assets/videos/user/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "assets", "videos", "user", "{{user_id}}"]
+            },
+            "description": "Get user's uploaded videos from R2 storage"
+          },
+          "response": []
+        },
+        {
+          "name": "List Background Audio",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/assets/audio/backgrounds",
+              "host": ["{{base_url}}"],
+              "path": ["api", "assets", "audio", "backgrounds"]
+            },
+            "description": "Get all available background audio tracks"
+          },
+          "response": []
+        },
+        {
+          "name": "List User Audio",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/assets/audio/user/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "assets", "audio", "user", "{{user_id}}"]
+            },
+            "description": "Get user's uploaded audio tracks"
+          },
+          "response": []
+        },
+        {
+          "name": "List All User Assets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/assets/list/{{user_id}}?type=all",
+              "host": ["{{base_url}}"],
+              "path": ["api", "assets", "list", "{{user_id}}"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "all",
+                  "description": "Filter by type: video, audio, image, all"
+                }
+              ]
+            },
+            "description": "Get all assets (video, audio, images) for a user"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "💬 Text Video Generation",
+      "description": "Text-based viral video creation",
+      "item": [
+        {
+          "name": "Analyze Conversation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    {\n      \"text\": \"You won't believe what happened to me today\",\n      \"sender\": \"left\"\n    },\n    {\n      \"text\": \"What happened??\",\n      \"sender\": \"right\"\n    },\n    {\n      \"text\": \"I was walking to work and saw a celebrity!\",\n      \"sender\": \"left\"\n    },\n    {\n      \"text\": \"No way! Who was it?\",\n      \"sender\": \"right\"\n    },\n    {\n      \"text\": \"It was actually my neighbor dressed as Batman\",\n      \"sender\": \"left\"\n    },\n    {\n      \"text\": \"😂😂😂 That's hilarious!\",\n      \"sender\": \"right\"\n    }\n  ],\n  \"people\": [\n    {\n      \"id\": \"person1\",\n      \"name\": \"Alex\",\n      \"side\": \"left\"\n    },\n    {\n      \"id\": \"person2\",\n      \"name\": \"Jordan\",\n      \"side\": \"right\"\n    }\n  ],\n  \"targetDemographic\": \"young adults\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/textVideo/analyze-conversation",
+              "host": ["{{base_url}}"],
+              "path": ["api", "textVideo", "analyze-conversation"]
+            },
+            "description": "AI-powered analysis of conversation messages for viral optimization"
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Viral Script",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prompt\": \"A surprising discovery at the workplace that changes everything\",\n  \"tone\": \"dramatic\",\n  \"length\": \"medium\",\n  \"scriptType\": \"story\",\n  \"targetDemographic\": \"working professionals\",\n  \"people\": [\n    {\n      \"id\": \"person1\",\n      \"name\": \"Sam\",\n      \"side\": \"left\",\n      \"avatar\": \"professional1\"\n    },\n    {\n      \"id\": \"person2\",\n      \"name\": \"Taylor\",\n      \"side\": \"right\",\n      \"avatar\": \"professional2\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/textVideo/generate-viral-script",
+              "host": ["{{base_url}}"],
+              "path": ["api", "textVideo", "generate-viral-script"]
+            },
+            "description": "AI-powered viral script generation for text videos"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Trending Templates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/textVideo/trending-templates",
+              "host": ["{{base_url}}"],
+              "path": ["api", "textVideo", "trending-templates"]
+            },
+            "description": "Retrieve trending templates for text video creation"
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Advanced Text Video",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    {\n      \"id\": \"1\",\n      \"text\": \"I need to tell you something urgent\",\n      \"sender\": \"left\"\n    },\n    {\n      \"id\": \"2\",\n      \"text\": \"What is it??\",\n      \"sender\": \"right\"\n    },\n    {\n      \"id\": \"3\",\n      \"text\": \"I just won the lottery!\",\n      \"sender\": \"left\"\n    }\n  ],\n  \"people\": [\n    {\n      \"id\": \"person1\",\n      \"name\": \"Lucky Person\",\n      \"side\": \"left\"\n    },\n    {\n      \"id\": \"person2\",\n      \"name\": \"Best Friend\",\n      \"side\": \"right\"\n    }\n  ],\n  \"template\": {\n    \"id\": \"viral-confession\",\n    \"name\": \"Viral Confession\"\n  },\n  \"settings\": {\n    \"textVideoSettings\": {\n      \"chatOverlay\": {\n        \"opacity\": 100,\n        \"verticalPosition\": 35,\n        \"scale\": 2.2\n      },\n      \"conversationStyle\": {\n        \"typingIndicators\": true,\n        \"messageAnimations\": \"slide\",\n        \"bubbleStyle\": \"modern\"\n      },\n      \"aiEnhancements\": {\n        \"enabled\": true,\n        \"viralOptimization\": true,\n        \"emotionalAnalysis\": true\n      }\n    }\n  },\n  \"advancedFeatures\": {\n    \"crossPlatformTemplates\": true,\n    \"cloudSync\": true,\n    \"exportFormats\": [\"mp4\", \"gif\"]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/textVideo/generate-advanced",
+              "host": ["{{base_url}}"],
+              "path": ["api", "textVideo", "generate-advanced"]
+            },
+            "description": "Generate advanced text video with USP features"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🏆 Top 5 Videos",
+      "description": "Top 5 content creation and optimization",
+      "item": [
+        {
+          "name": "Create Top 5 Project",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Top 5 Most Viral TikTok Trends in 2024\",\n  \"description\": \"Discover the hottest TikTok trends that are taking the internet by storm\",\n  \"top5VideosData\": {\n    \"category\": \"social media trends\",\n    \"items\": [\n      {\n        \"rank\": 1,\n        \"title\": \"AI Voice Cloning\",\n        \"description\": \"Create realistic voice clones with AI\",\n        \"popularity\": 95\n      },\n      {\n        \"rank\": 2,\n        \"title\": \"Viral Dance Challenges\",\n        \"description\": \"New dance moves going viral daily\",\n        \"popularity\": 88\n      },\n      {\n        \"rank\": 3,\n        \"title\": \"Text-to-Video AI\",\n        \"description\": \"Generate videos from text prompts\",\n        \"popularity\": 82\n      },\n      {\n        \"rank\": 4,\n        \"title\": \"Minimalist Aesthetics\",\n        \"description\": \"Clean, simple visual styles\",\n        \"popularity\": 76\n      },\n      {\n        \"rank\": 5,\n        \"title\": \"Educational Mini-Series\",\n        \"description\": \"Quick learning content\",\n        \"popularity\": 71\n      }\n    ]\n  },\n  \"settings\": {\n    \"duration\": 60,\n    \"style\": \"modern\",\n    \"transitions\": \"smooth\",\n    \"musicStyle\": \"upbeat\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/top5/create",
+              "host": ["{{base_url}}"],
+              "path": ["api", "top5", "create"]
+            },
+            "description": "Create a new Top 5 video project"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Trending Topics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/top5/trending/topics?category=technology&platform=tiktok&timeframe=24h",
+              "host": ["{{base_url}}"],
+              "path": ["api", "top5", "trending", "topics"],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "technology"
+                },
+                {
+                  "key": "platform",
+                  "value": "tiktok"
+                },
+                {
+                  "key": "timeframe",
+                  "value": "24h"
+                }
+              ]
+            },
+            "description": "Get currently trending topics for Top 5 videos"
+          },
+          "response": []
+        },
+        {
+          "name": "Analyze Viral Potential",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },\n              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"rank\": 1,\n      \"title\": \"AI-Generated Music\",\n      \"description\": \"Create songs with artificial intelligence\",\n      \"category\": \"technology\",\n      \"keywords\": [\"AI\", \"music\", \"generation\", \"creative\"]\n    },\n    {\n      \"rank\": 2,\n      \"title\": \"Virtual Reality Gaming\",\n      \"description\": \"Immersive gaming experiences\",\n      \"category\": \"gaming\",\n      \"keywords\": [\"VR\", \"gaming\", \"immersive\", \"future\"]\n    },\n    {\n      \"rank\": 3,\n      \"title\": \"Sustainable Fashion\",\n      \"description\": \"Eco-friendly clothing trends\",\n      \"category\": \"lifestyle\",\n      \"keywords\": [\"sustainable\", \"fashion\", \"eco\", \"green\"]\n    }\n  ],\n  \"targetPlatforms\": [\"tiktok\", \"instagram\", \"youtube\"],\n  \"targetAudience\": \"Gen Z and Millennials interested in technology and lifestyle\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/top5/analysis/viral-potential",
+              "host": ["{{base_url}}"],
+              "path": ["api", "top5", "analysis", "viral-potential"]
+            },
+            "description": "Analyze content for viral potential using AI"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Top 5 Health Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/top5/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "top5", "health"]
+            },
+            "description": "Check health status of Top 5 services"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Top 5 Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/top5/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "top5", "stats"]
+            },
+            "description": "Get Top 5 service statistics and metrics"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📝 Captions",
+      "description": "Video caption generation and management",
+      "item": [
+        {
+          "name": "List User Captions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/captions?page=1&limit=10&status=completed&language=en",
+              "host": ["{{base_url}}"],
+              "path": ["api", "captions"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "status",
+                  "value": "completed"
+                },
+                {
+                  "key": "language",
+                  "value": "en"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get all captions for authenticated user with filtering and pagination"
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Video for Captions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "video",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "title",
+                  "value": "My Video Caption Project",
+                  "type": "text"
+                },
+                {
+                  "key": "language",
+                  "value": "en",
+                  "type": "text"
+                },
+                {
+                  "key": "settings",
+                  "value": "{\"timing\": \"auto\", \"autoSync\": true, \"speakerDetection\": false}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/captions/upload",
+              "host": ["{{base_url}}"],
+              "path": ["api", "captions", "upload"]
+            },
+            "description": "Upload video file and generate captions using Whisper AI"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Caption Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/captions/{{caption_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "captions", "{{caption_id}}"]
+            },
+            "description": "Get detailed information about a specific caption"
+          },
+          "response": []
+        },
+        {
+          "name": "Export Caption (SRT)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/captions/{{caption_id}}/export/srt",
+              "host": ["{{base_url}}"],
+              "path": ["api", "captions", "{{caption_id}}", "export", "srt"]
+            },
+            "description": "Export caption in SRT format"
+          },
+          "response": []
+        },
+        {
+          "name": "Export Caption (VTT)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/captions/{{caption_id}}/export/vtt",
+              "host": ["{{base_url}}"],
+              "path": ["api", "captions", "{{caption_id}}", "export", "vtt"]
+            },
+            "description": "Export caption in WebVTT format"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Caption Templates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/captions/templates/list",
+              "host": ["{{base_url}}"],
+              "path": ["api", "captions", "templates", "list"]
+            },
+            "description": "Get available caption style templates"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🔧 Avatar Management",
+      "description": "User avatar upload and management",
+      "item": [
+        {
+          "name": "Upload Avatar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "avatar",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "name",
+                  "value": "My Profile Picture",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/avatars/upload",
+              "host": ["{{base_url}}"],
+              "path": ["api", "avatars", "upload"]
+            },
+            "description": "Upload and process new avatar image"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Avatar Library",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/avatars/library",
+              "host": ["{{base_url}}"],
+              "path": ["api", "avatars", "library"]
+            },
+            "description": "Get user's custom avatar collection"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Avatar",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/avatars/{{avatar_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "avatars", "{{avatar_id}}"]
+            },
+            "description": "Delete a custom avatar"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "⚡ System Health",
+      "description": "API health and system monitoring",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Check API health and service status"
+          },
+          "response": []
+        },
+        {
+          "name": "API Information",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Get API information and available services"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-set environment variables if not present",
+          "if (!pm.environment.get('base_url')) {",
+          "    pm.environment.set('base_url', 'http://localhost:3000');",
+          "}",
+          "",
+          "if (!pm.environment.get('user_id')) {",
+          "    pm.environment.set('user_id', 'test_user_123');",
+          "}",
+          "",
+          "if (!pm.environment.get('caption_id')) {",
+          "    pm.environment.set('caption_id', 'sample_caption_id');",
+          "}",
+          "",
+          "if (!pm.environment.get('avatar_id')) {",
+          "    pm.environment.set('avatar_id', 'sample_avatar_id');",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global test script",
+          "pm.test('Response time is acceptable', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+          "});",
+          "",
+          "pm.test('Response has proper headers', function () {",
+          "    pm.expect(pm.response.headers.get('Content-Type')).to.exist;",
+          "});",
+          "",
+          "// Log response for debugging",
+          "if (pm.response.code >= 400) {",
+          "    console.log('Error response:', pm.response.json());",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "video_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "test_user_123",
+      "type": "string"
+    },
+    {
+      "key": "caption_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "avatar_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

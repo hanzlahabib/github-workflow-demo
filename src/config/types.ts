@@ -45,6 +45,7 @@ export interface EnvironmentConfig {
   R2_SECRET_ACCESS_KEY?: string;
   R2_BUCKET_NAME?: string;
   R2_ENDPOINT?: string;
+  R2_PUBLIC_URL?: string;
 
   // Remotion Configuration
   REMOTION_COMPOSITIONS_PATH?: string;
@@ -157,6 +158,7 @@ export interface CloudflareStorageConfig {
   secretKey: string;
   bucket: string;
   endpoint: string;
+  publicUrl?: string;
 }
 
 export interface LocalStorageConfig {

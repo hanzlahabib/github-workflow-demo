@@ -385,7 +385,7 @@ class RemotionService {
 
   async renderStoryVideo(props: StoryVideoProps, options: Partial<RenderRequest> = {}): Promise<RenderResult> {
     return this.renderVideo({
-      compositionId: 'ChatReel',
+      compositionId: 'text-story',
       inputProps: props,
       codec: 'h264',
       width: 1080,
@@ -500,7 +500,7 @@ class RemotionService {
       // Parse the output (this would depend on the actual Remotion CLI output format)
       // For now, return mock compositions
       return [
-        { id: 'ChatReel', width: 1080, height: 1920, fps: 30, durationInFrames: 1800 },
+        { id: 'text-story', width: 1080, height: 1920, fps: 30, durationInFrames: 1800 },
         { id: 'reddit-video', width: 1080, height: 1920, fps: 30, durationInFrames: 2700 },
         { id: 'quiz-video', width: 1080, height: 1920, fps: 30, durationInFrames: 3600 },
       ];

@@ -1,0 +1,141 @@
+name: Deploy Backend API to CyberPanel
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build TypeScript application
+      run: npm run build
+      
+    - name: Run tests (if available)
+      run: npm test --if-present
+      
+    - name: Deploy to CyberPanel Server
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        port: 22
+        script: |
+          # Navigate to app directory
+          cd /home/reelspeed-backend/public_html
+          
+          # Backup current deployment
+          if [ -d "backup" ]; then rm -rf backup; fi
+          if [ -d "dist" ]; then mv dist backup; fi
+          
+          # Stop the Node.js app
+          cyberpanel stopApp --app reelspeed-backend || true
+          
+    - name: Upload application files
+      uses: appleboy/scp-action@v0.1.4
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        port: 22
+        source: "dist,package.json,package-lock.json"
+        target: "/home/reelspeed-backend/public_html/"
+        rm: false
+        
+    - name: Create production environment file
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        port: 22
+        script: |
+          cd /home/reelspeed-backend/public_html
+          
+          # Create .env file with production settings
+          cat > .env << 'EOF'
+          NODE_ENV=production
+          PORT=${PORT}
+          LOG_LEVEL=info
+          CORS_ORIGIN=https://app.reelspeed.ai
+          
+          # Database
+          MONGODB_URI=${{ secrets.MONGODB_URI }}
+          DB_NAME=reelspeed
+          REDIS_HOST=${{ secrets.REDIS_HOST }}
+          REDIS_PORT=${{ secrets.REDIS_PORT }}
+          REDIS_DB=0
+          
+          # Auth
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
+          JWT_EXPIRES_IN=15m
+          JWT_REFRESH_EXPIRES_IN=7d
+          
+          # AI Services
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          OPENAI_ORG_ID=${{ secrets.OPENAI_ORG_ID }}
+          ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}
+          
+          # Storage
+          STORAGE_PROVIDER=cloudflare
+          R2_ACCOUNT_ID=${{ secrets.R2_ACCOUNT_ID }}
+          CLOUDFLARE_R2_ENDPOINT=${{ secrets.CLOUDFLARE_R2_ENDPOINT }}
+          CLOUDFLARE_R2_ACCESS_KEY=${{ secrets.CLOUDFLARE_R2_ACCESS_KEY }}
+          CLOUDFLARE_R2_SECRET_KEY=${{ secrets.CLOUDFLARE_R2_SECRET_KEY }}
+          CLOUDFLARE_R2_BUCKET=${{ secrets.CLOUDFLARE_R2_BUCKET }}
+          CLOUDFLARE_R2_PUBLIC_URL=${{ secrets.CLOUDFLARE_R2_PUBLIC_URL }}
+          
+          # AWS S3 Configuration (for compatibility)
+          AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION=auto
+          AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
+          
+          # Features
+          USE_MOCK_SERVICES=false
+          ENABLE_CACHING=true
+          
+          # Service URLs
+          FRONTEND_URL=https://app.reelspeed.ai
+          VIDEO_SERVICE_URL=https://video.reelspeed.ai
+          EOF
+          
+    - name: Start application
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        port: 22
+        script: |
+          # Navigate to app directory
+          cd /home/reelspeed-backend/public_html
+          
+          # Install production dependencies only
+          npm ci --production
+          
+          # Start the Node.js app via CyberPanel
+          cyberpanel startApp --app reelspeed-backend
+          
+          # Verify deployment
+          sleep 15
+          curl -f http://localhost:$(cyberpanel getAppPort --app reelspeed-backend)/health || exit 1
+          
+          echo "✅ Backend API deployed successfully!"
+          echo "🌐 Available at: https://api.reelspeed.ai"

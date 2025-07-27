@@ -1,5 +1,4 @@
 import path from 'path';
-import { initializeAIServices } from '../services';
 
 // Local development configuration
 const isDevelopment = process.env.NODE_ENV !== 'production';
@@ -52,15 +51,12 @@ export const serviceConfig = {
   },
 };
 
-// Initialize services function using new standardized patterns
+// Initialize services function
 export async function initializeVideoServices() {
   try {
-    console.log('[Services] Initializing video services with new standardized patterns...');
+    console.log('[Services] Initializing video services...');
     console.log('[Services] Video service path:', videoServicePath);
     console.log('[Services] Renders directory:', rendersDir);
-
-    // Initialize all AI services using new ServiceRegistry
-    await initializeAIServices();
 
     console.log('[Services] Video services initialized successfully');
     return true;
