@@ -729,6 +729,13 @@ export class VideoService {
     request: VideoGenerationRequest,
     onProgress?: ProgressCallback
   ): Promise<VideoGenerationResult> {
+    // Check if using remote video service
+    if (this.videoServicePath.startsWith('http://') || this.videoServicePath.startsWith('https://')) {
+      console.log('[VideoService] 🌐 Using remote video service for generation');
+      const { remoteVideoService } = await import('./remoteVideoService');
+      return remoteVideoService.generateVideo(request, onProgress);
+    }
+    
     const startTime = Date.now();
     const videoId = `${request.type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const outputPath = path.join(this.rendersDir, `${videoId}.mp4`);
