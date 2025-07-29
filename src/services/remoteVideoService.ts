@@ -82,14 +82,14 @@ export class RemoteVideoService {
 
   private getCompositionId(type: string): string {
     const compositionMap = {
-      'story': 'ConfigurableNewsVideo',
-      'reddit': 'ConfigurableNewsVideo',
-      'quiz': 'ConfigurableNewsVideo',
-      'educational': 'ConfigurableNewsVideo',
-      'text-story': 'CleanTextStoryComposition'
+      'story': 'text-story',
+      'reddit': 'single-speaker-focus',
+      'quiz': 'triple-panel-analysis',
+      'educational': 'single-speaker-focus',
+      'text-story': 'text-story'
     };
     
-    return compositionMap[type] || 'ConfigurableNewsVideo';
+    return compositionMap[type] || 'text-story';
   }
 
   private prepareInputProps(request: VideoGenerationRequest): any {
