@@ -92,6 +92,9 @@ jobs:
           OPENAI_ORG_ID=${{ secrets.OPENAI_ORG_ID }}
           ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}
           
+          # Video Service
+          VIDEO_SERVICE_URL=https://video.reelspeed.ai
+          
           # Storage
           STORAGE_PROVIDER=cloudflare
           R2_ACCOUNT_ID=${{ secrets.R2_ACCOUNT_ID }}
