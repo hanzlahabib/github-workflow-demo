@@ -1,29 +1,79 @@
 import axios from 'axios';
+import { io, Socket } from 'socket.io-client';
 import type { VideoGenerationRequest, VideoGenerationResult } from './videoService';
 
 export class RemoteVideoService {
   private videoServiceUrl: string;
+  private socket: Socket | null = null;
   
   constructor() {
     this.videoServiceUrl = process.env.VIDEO_SERVICE_URL || 'http://localhost:3003';
     console.log(`[RemoteVideoService] Using video service at: ${this.videoServiceUrl}`);
   }
 
+  private connectSocket(): Promise<Socket> {
+    return new Promise((resolve, reject) => {
+      if (this.socket?.connected) {
+        resolve(this.socket);
+        return;
+      }
+
+      const socket = io(this.videoServiceUrl, {
+        transports: ['websocket', 'polling'],
+        timeout: 10000
+      });
+
+      socket.on('connect', () => {
+        console.log(`[RemoteVideoService] WebSocket connected: ${socket.id}`);
+        this.socket = socket;
+        resolve(socket);
+      });
+
+      socket.on('connect_error', (error) => {
+        console.error('[RemoteVideoService] WebSocket connection failed:', error);
+        reject(error);
+      });
+
+      socket.on('disconnect', () => {
+        console.log('[RemoteVideoService] WebSocket disconnected');
+        this.socket = null;
+      });
+    });
+  }
+
   async generateVideo(
     request: VideoGenerationRequest,
-    onProgress?: (progress: any) => void
+    onProgress?: (progress: any) => void,
+    frontendSocketId?: string
   ): Promise<VideoGenerationResult> {
     const startTime = Date.now();
     
     try {
-      console.log('[RemoteVideoService] Starting remote video generation');
+      console.log('[RemoteVideoService] Starting real-time video generation');
+      
+      // Get backend's io instance to emit to frontend
+      const io = (global as any).io;
+      
+      const emitToFrontend = (progressData: any) => {
+        // Emit to local progress callback
+        onProgress?.(progressData);
+        
+        // Also emit to frontend via WebSocket if socketId provided
+        if (frontendSocketId && io) {
+          console.log(`[RemoteVideoService] Emitting to frontend ${frontendSocketId}:`, progressData);
+          io.to(frontendSocketId).emit('videoProgress', progressData);
+        }
+      };
       
       // Stage 1: Preparing request
-      onProgress?.({
+      emitToFrontend({
         phase: 'preparing',
         progress: 5,
-        message: 'Preparing video generation request...'
+        message: 'Connecting to video service...'
       });
+      
+      // Connect to WebSocket
+      const socket = await this.connectSocket();
       
       // Map the request to API format
       const apiRequest = {
@@ -34,46 +84,55 @@ export class RemoteVideoService {
           width: request.settings?.width || 1080,
           height: request.settings?.height || 1920,
           fps: request.settings?.fps || 30,
-        }
+        },
+        socketId: socket.id
       };
 
-      console.log('[RemoteVideoService] Sending request to API:', {
+      console.log('[RemoteVideoService] Sending request to API with WebSocket:', {
         url: `${this.videoServiceUrl}/api/render`,
-        compositionId: apiRequest.compositionId
+        compositionId: apiRequest.compositionId,
+        socketId: socket.id
       });
 
-      // Stage 2: Uploading request
-      onProgress?.({
-        phase: 'uploading',
-        progress: 10,
-        message: 'Sending request to video service...'
+      // Set up real-time progress listener
+      const progressPromise = new Promise<any>((resolve, reject) => {
+        socket.on('progress', (progressData) => {
+          console.log('[RemoteVideoService] Real-time progress:', progressData);
+          emitToFrontend(progressData);
+          
+          if (progressData.phase === 'complete') {
+            resolve(progressData);
+          }
+        });
+
+        socket.on('error', (errorData) => {
+          console.error('[RemoteVideoService] WebSocket error:', errorData);
+          reject(new Error(errorData.error || 'WebSocket error'));
+        });
       });
 
-      // Make API call with polling for progress
-      const response = await this.makeRequestWithProgress(apiRequest, onProgress);
+      // Make API call
+      const apiPromise = axios.post(
+        `${this.videoServiceUrl}/api/render`,
+        apiRequest,
+        { timeout: 300000 }
+      );
+
+      // Wait for both API response and final progress
+      const [response] = await Promise.all([apiPromise, progressPromise]);
 
       if (response.data.success) {
-        console.log('[RemoteVideoService] Video generated successfully');
-        
-        // Stage 6: Preparing final URL
-        onProgress?.({
-          phase: 'finalizing',
-          progress: 95,
-          message: 'Preparing video URL...'
-        });
+        console.log('[RemoteVideoService] Real-time video generated successfully');
         
         const videoUrl = response.data.videoUrl || response.data.outputPath;
         
-        // Stage 7: Done
-        onProgress?.({
-          phase: 'complete',
-          progress: 100,
-          message: 'Video ready!'
-        });
+        // Disconnect socket after completion
+        socket.disconnect();
+        this.socket = null;
         
         return {
           success: true,
-          outputPath: videoUrl, // Use the correct video URL
+          outputPath: videoUrl,
           videoUrl: videoUrl,
           durationInSeconds: response.data.composition.durationInFrames / response.data.composition.fps,
           width: response.data.composition.width,
@@ -85,82 +144,23 @@ export class RemoteVideoService {
       }
       
     } catch (error) {
-      console.error('[RemoteVideoService] Generation failed:', error);
+      console.error('[RemoteVideoService] Real-time generation failed:', error);
+      
+      // Clean up socket on error
+      if (this.socket) {
+        this.socket.disconnect();
+        this.socket = null;
+      }
       
       return {
         success: false,
-        error: error.message || 'Remote video generation failed',
+        error: error.message || 'Real-time video generation failed',
         renderTimeMs: Date.now() - startTime
       };
     }
   }
 
-  private async makeRequestWithProgress(
-    apiRequest: any,
-    onProgress?: (progress: any) => void
-  ): Promise<any> {
-    // Stage 3: Rendering
-    onProgress?.({
-      phase: 'rendering',
-      progress: 15,
-      message: 'Starting video rendering...'
-    });
-
-    // Start the actual request
-    const requestPromise = axios.post(
-      `${this.videoServiceUrl}/api/render`,
-      apiRequest,
-      {
-        timeout: 300000, // 5 minutes
-      }
-    );
-
-    // Simulate progress updates while waiting for response
-    const progressInterval = setInterval(() => {
-      const currentTime = Date.now();
-      const elapsedSeconds = (currentTime - Date.now()) / 1000;
-      
-      // Simulate realistic progress stages
-      if (Math.random() > 0.7) { // Random progress updates
-        const randomProgress = 15 + Math.floor(Math.random() * 70); // 15-85%
-        const messages = [
-          'Rendering video frames...',
-          'Processing visual effects...',
-          'Applying text animations...',
-          'Encoding video...',
-          'Optimizing quality...'
-        ];
-        
-        onProgress?.({
-          phase: 'rendering',
-          progress: Math.min(randomProgress, 85),
-          message: messages[Math.floor(Math.random() * messages.length)]
-        });
-      }
-    }, 2000); // Update every 2 seconds
-
-    try {
-      const response = await requestPromise;
-      clearInterval(progressInterval);
-      
-      // Stage 4: Upload/Storage
-      if (response.data.success) {
-        onProgress?.({
-          phase: 'uploading',
-          progress: 90,
-          message: response.data.r2Url ? 'Uploading to cloud storage...' : 'Preparing video file...'
-        });
-        
-        // Small delay to show upload progress
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-      
-      return response;
-    } catch (error) {
-      clearInterval(progressInterval);
-      throw error;
-    }
-  }
+  // Legacy method removed - now using real-time WebSocket progress
 
   private getCompositionId(type: string): string {
     const compositionMap = {

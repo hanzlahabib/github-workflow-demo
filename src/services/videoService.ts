@@ -727,13 +727,14 @@ export class VideoService {
 
   async generateVideo(
     request: VideoGenerationRequest,
-    onProgress?: ProgressCallback
+    onProgress?: ProgressCallback,
+    frontendSocketId?: string
   ): Promise<VideoGenerationResult> {
     // Check if using remote video service
     if (this.videoServicePath.startsWith('http://') || this.videoServicePath.startsWith('https://')) {
       console.log('[VideoService] 🌐 Using remote video service for generation');
       const { remoteVideoService } = await import('./remoteVideoService');
-      return remoteVideoService.generateVideo(request, onProgress);
+      return remoteVideoService.generateVideo(request, onProgress, frontendSocketId);
     }
     
     const startTime = Date.now();
