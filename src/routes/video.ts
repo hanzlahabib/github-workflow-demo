@@ -19,7 +19,7 @@ const videoStatuses: { [videoId: string]: {
 } } = {};
 
 // Native video generation function using Remotion programmatic API
-async function generateVideoAsync(videoId: string, type: string, input: any, settings: any) {
+async function generateVideoAsync(videoId: string, type: string, input: any, settings: any, socketId?: string) {
   try {
     console.log(`[VideoGen] Starting native video generation for ${videoId}`);
     videoStatuses[videoId] = { status: 'processing', progress: 5, message: 'Initializing video service...' };
@@ -59,13 +59,13 @@ async function generateVideoAsync(videoId: string, type: string, input: any, set
     const result = await videoService.generateVideo(request, (progress) => {
       console.log(`[VideoGen] Progress update:`, progress);
 
-      // Update status based on progress
+      // Update status based on progress  
       videoStatuses[videoId] = {
         status: 'processing',
         progress: progress.progress,
         message: progress.message
       };
-    });
+    }, socketId);
 
     if (result.success && result.outputPath) {
       console.log(`[VideoGen] Video generation completed for ${videoId}`);
@@ -111,19 +111,20 @@ router.post('/generate', async (req, res) => {
   const requestId = (req as any).requestId || Math.random().toString(36).substr(2, 9);
   
   try {
-    const { type, input, settings, userId } = req.body;
+    const { type, input, settings, userId, socketId } = req.body;
     
     console.log(`[Video][${requestId}] Generation request:`, {
       type,
       userId,
+      socketId,
       hasConfig: !!(input?.config)
     });
 
     // Create a video ID
     const videoId = `video_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Process video generation asynchronously
-    generateVideoAsync(videoId, type, input, settings).catch(error => {
+    // Process video generation asynchronously with socketId
+    generateVideoAsync(videoId, type, input, settings, socketId).catch(error => {
       console.error(`[Video][${requestId}] Background generation failed for ${videoId}:`, error);
     });
 

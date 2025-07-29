@@ -4,6 +4,8 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import { createServer as createHttpServer } from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 
 // Configuration
 import { initializeConfig, getServerConfig, getAIConfig, getStorageConfig, getCacheConfig, getFeatureFlags, useMockServices } from './config';
@@ -23,8 +25,27 @@ import cacheRoutes from './routes/cache';
 // Middleware
 import { requestLogger } from './middleware/requestLogger';
 
-export async function createServer(): Promise<express.Application> {
+export async function createServer(): Promise<{ app: express.Application; httpServer: any; io: SocketIOServer }> {
   const app = express();
+  const httpServer = createHttpServer(app);
+  const io = new SocketIOServer(httpServer, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"]
+    }
+  });
+
+  // Store io instance globally for access in routes
+  (global as any).io = io;
+
+  // WebSocket connection handling
+  io.on('connection', (socket) => {
+    console.log(`[WebSocket] Frontend client connected: ${socket.id}`);
+    
+    socket.on('disconnect', () => {
+      console.log(`[WebSocket] Frontend client disconnected: ${socket.id}`);
+    });
+  });
 
   // Initialize centralized configuration
   let serverConfig: ReturnType<typeof getServerConfig>;
@@ -144,21 +165,22 @@ export async function createServer(): Promise<express.Application> {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
   });
 
-  return app;
+  return { app, httpServer, io };
 }
 
 export async function startServer(): Promise<void> {
   try {
-    const app = await createServer();
+    const { app, httpServer, io } = await createServer();
     
     // Get server config
     const { config } = initializeConfig();
     const PORT = config.server.port;
 
-    // Start server with error handling - bind to all interfaces for Docker
-    const server = app.listen(PORT, '0.0.0.0', () => {
-      console.log(`✅ Server successfully started on port ${PORT}`);
+    // Start server with WebSocket support - bind to all interfaces for Docker
+    const server = httpServer.listen(PORT, '0.0.0.0', () => {
+      console.log(`✅ Server with WebSocket successfully started on port ${PORT}`);
       console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+      console.log(`🔌 WebSocket server running`);
       console.log(`📊 Server address:`, server.address());
     });
 
@@ -171,7 +193,7 @@ export async function startServer(): Promise<void> {
     });
 
     server.on('close', () => {
-      console.log('❌ Server closed');
+      console.log('❌ Server with WebSocket closed');
     });
 
     // Server health check
@@ -182,11 +204,13 @@ export async function startServer(): Promise<void> {
     // Graceful shutdown
     process.on('SIGTERM', async () => {
       console.log('SIGTERM received, shutting down gracefully');
+      io.close();
       server.close();
     });
 
     process.on('SIGINT', async () => {
       console.log('SIGINT received, shutting down gracefully');
+      io.close();
       server.close();
     });
 
