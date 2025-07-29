@@ -62,6 +62,8 @@ export class RemoteVideoService {
         if (frontendSocketId && io) {
           console.log(`[RemoteVideoService] Emitting to frontend ${frontendSocketId}:`, progressData);
           io.to(frontendSocketId).emit('videoProgress', progressData);
+        } else {
+          console.log(`[RemoteVideoService] No frontend socketId provided (${frontendSocketId}) or io not available`);
         }
       };
       

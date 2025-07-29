@@ -34,6 +34,7 @@ export interface VideoGenerationRequest {
 export interface VideoGenerationResult {
   success: boolean;
   outputPath?: string;
+  videoUrl?: string; // Added for real-time WebSocket integration
   sizeInBytes?: number;
   durationInSeconds?: number;
   width?: number;
