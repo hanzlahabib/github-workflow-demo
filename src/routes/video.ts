@@ -70,14 +70,27 @@ async function generateVideoAsync(videoId: string, type: string, input: any, set
     if (result.success && result.outputPath) {
       console.log(`[VideoGen] Video generation completed for ${videoId}`);
 
-      // Get the filename from the full path
-      const fileName = path.basename(result.outputPath);
+      // For remote video service, preserve the full videoUrl
+      // For local video service, create download path
+      let finalOutputPath = result.outputPath;
+      
+      if (result.videoUrl) {
+        // Remote video service provided full URL, use it directly
+        finalOutputPath = result.videoUrl;
+        console.log(`[VideoGen] Using remote video URL: ${finalOutputPath}`);
+      } else if (!result.outputPath.startsWith('http')) {
+        // Local video service, create download path
+        const fileName = path.basename(result.outputPath);
+        finalOutputPath = `/api/video/download/${fileName}`;
+        console.log(`[VideoGen] Created local download path: ${finalOutputPath}`);
+      }
 
       videoStatuses[videoId] = {
         status: 'completed',
         progress: 100,
         message: 'Video generation completed successfully!',
-        outputPath: `/api/video/download/${fileName}`,
+        outputPath: finalOutputPath,
+        videoUrl: finalOutputPath, // Include videoUrl for frontend
         sizeInBytes: result.sizeInBytes,
         duration: result.durationInSeconds
       };
