@@ -53,6 +53,7 @@ export class RemoteVideoService {
       
       // Get backend's io instance to emit to frontend
       const io = (global as any).io;
+      console.log(`[RemoteVideoService] Backend io available: ${!!io}, frontendSocketId: ${frontendSocketId}`);
       
       const emitToFrontend = (progressData: any) => {
         // Emit to local progress callback
