@@ -118,7 +118,7 @@ export class RemoteVideoService {
       const apiPromise = axios.post(
         `${this.videoServiceUrl}/api/render`,
         apiRequest,
-        { timeout: 600000 } // 10 minutes to match video service
+        { timeout: 1200000 } // 20 minutes for complex video renders with external videos
       );
 
       // Wait for both API response and final progress
