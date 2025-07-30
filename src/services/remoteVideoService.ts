@@ -128,6 +128,14 @@ export class RemoteVideoService {
         
         const videoUrl = response.data.videoUrl || response.data.outputPath;
         
+        // Emit final progress with videoUrl to frontend
+        emitToFrontend({
+          phase: 'complete',
+          progress: 100,
+          message: 'Video ready!',
+          videoUrl: videoUrl
+        });
+        
         // Disconnect socket after completion
         socket.disconnect();
         this.socket = null;
