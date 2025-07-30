@@ -13,6 +13,7 @@ const videoStatuses: { [videoId: string]: {
   progress: number;
   message: string;
   outputPath?: string;
+  videoUrl?: string; // Added for WebSocket real-time progress
   error?: string;
   sizeInBytes?: number;
   duration?: number;
