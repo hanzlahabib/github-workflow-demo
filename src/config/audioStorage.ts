@@ -18,14 +18,14 @@ export interface AudioStorageConfig {
 }
 
 const DEV_CONFIG: AudioStorageConfig = {
-  bucket: 'reelspeed-audio-dev',
+  bucket: 'remotionlambda-useast1-oelksfi1c7', // Use Lambda bucket for audio access
   retention: {
     voiceovers: 3,   // 3 days - quick cleanup for dev
     messages: 1,     // 1 day
     previews: 0.5,   // 12 hours
     system: null     // permanent
   },
-  acl: 'public-read', // Easy testing in development
+  acl: 'public-read', // Easy testing in development and Lambda access
   compression: false, // Fast uploads for dev
   backup: false,
   signedUrlExpiry: 24 * 60 * 60 // 24 hours - long for dev testing

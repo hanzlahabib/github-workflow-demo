@@ -25,6 +25,7 @@
     "@elevenlabs/elevenlabs-js": "^2.6.0",
     "@reelspeed/config": "file:../../config/global/shared/config",
     "@remotion/bundler": "^4.0.324",
+    "@remotion/lambda": "^4.0.329",
     "@remotion/renderer": "^4.0.324",
     "@types/cors": "^2.8.19",
     "@types/ioredis": "^4.28.10",
