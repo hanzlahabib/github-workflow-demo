@@ -731,8 +731,108 @@ export class VideoService {
     onProgress?: ProgressCallback,
     frontendSocketId?: string
   ): Promise<VideoGenerationResult> {
-    // Check if using remote video service
-    if (this.videoServicePath.startsWith('http://') || this.videoServicePath.startsWith('https://')) {
+    console.log('[VideoService] DEBUG - videoServicePath:', this.videoServicePath);
+    
+    // NEW: Check if multi-tier processing is enabled
+    const useMultiTier = process.env.ENABLE_MULTI_TIER_PROCESSING === 'true';
+    
+    if (useMultiTier) {
+      console.log('[VideoService] 🚀 Using multi-tier video processing orchestrator');
+      const { videoProcessingOrchestrator } = await import('./videoProcessingOrchestrator');
+      
+      const orchestratorResult = await videoProcessingOrchestrator.processVideo(
+        {
+          type: request.type,
+          input: request.input,
+          settings: request.settings,
+          userId: request.userId,
+          priority: 'medium',
+          options: {
+            enableFallback: true,
+            maxTimeMinutes: 15
+          }
+        },
+        (progress) => {
+          if (onProgress) {
+            onProgress({
+              phase: progress.phase as any,
+              progress: progress.progress,
+              message: progress.message || ''
+            });
+          }
+        }
+      );
+      
+      if (orchestratorResult.success) {
+        return {
+          success: true,
+          videoUrl: orchestratorResult.videoUrl!,
+          outputPath: orchestratorResult.videoUrl!,
+          sizeInBytes: orchestratorResult.performance.sizeInBytes || 0,
+          durationInSeconds: orchestratorResult.performance.processingTimeMs / 1000,
+          renderTimeMs: orchestratorResult.performance.processingTimeMs,
+          cacheInfo: orchestratorResult.preprocessing ? {
+            hadR2Videos: orchestratorResult.preprocessing.applied,
+            cachedUrls: 1,
+            cacheProcessingTimeMs: orchestratorResult.preprocessing.timeMs,
+            urlMappings: {}
+          } : {
+            hadR2Videos: false,
+            cachedUrls: 0,
+            cacheProcessingTimeMs: 0,
+            urlMappings: {}
+          }
+        };
+      } else {
+        throw new Error(orchestratorResult.error || 'Multi-tier video processing failed');
+      }
+    }
+    
+    console.log('[VideoService] DEBUG - Lambda detection:', {
+      startsWithHttps: this.videoServicePath.startsWith('https://'),
+      includesS3: this.videoServicePath.includes('s3.amazonaws.com'),
+      includesRemotionLambda: this.videoServicePath.includes('remotionlambda-'),
+      willUseLambda: this.videoServicePath.startsWith('https://') && (this.videoServicePath.includes('s3.amazonaws.com') || this.videoServicePath.includes('remotionlambda-')),
+      fullPath: this.videoServicePath
+    });
+    
+    // Check if using Lambda video service (S3 site URL indicates Lambda deployment)
+    if (this.videoServicePath.startsWith('https://') && (this.videoServicePath.includes('s3.amazonaws.com') || this.videoServicePath.includes('remotionlambda-'))) {
+      console.log('[VideoService] ⚡ Using Lambda video service for generation');
+      const { lambdaVideoService } = await import('./lambdaVideoService');
+      
+      const lambdaResult = await lambdaVideoService.generateVideo(request, (progress) => {
+        if (onProgress) {
+          onProgress({
+            phase: progress.phase as any,
+            progress: progress.progress,
+            message: progress.message || ''
+          });
+        }
+      });
+
+      if (!lambdaResult.success) {
+        throw new Error(lambdaResult.error || 'Lambda video generation failed');
+      }
+
+      return {
+        success: true,
+        videoUrl: lambdaResult.videoUrl!,
+        outputPath: lambdaResult.videoUrl!,
+        sizeInBytes: lambdaResult.sizeInBytes || 0,
+        durationInSeconds: lambdaResult.durationInSeconds || 0,
+        renderTimeMs: (lambdaResult.renderTime || 0) * 1000,
+        cacheInfo: { 
+          hadR2Videos: false, 
+          cachedUrls: 0, 
+          cacheProcessingTimeMs: 0, 
+          urlMappings: {} 
+        }
+      };
+    }
+    
+    // Check if using traditional remote video service (WebSocket-based)
+    if (this.videoServicePath.startsWith('http://') || (this.videoServicePath.startsWith('https://') && !this.videoServicePath.includes('s3.amazonaws.com'))) {
       console.log('[VideoService] 🌐 Using remote video service for generation');
       const { remoteVideoService } = await import('./remoteVideoService');
       return remoteVideoService.generateVideo(request, onProgress, frontendSocketId);
