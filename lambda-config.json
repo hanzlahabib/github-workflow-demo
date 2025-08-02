@@ -1,0 +1,10 @@
+{
+  "LAMBDA_FUNCTION_NAME": "remotion-render-4-0-331-mem3008mb-disk4096mb-300sec",
+  "LAMBDA_SITE_URL": "https://remotionlambda-useast1-oelksfi1c7.s3.us-east-1.amazonaws.com/sites/video-service-fixed-progress-202508011606/",
+  "LAMBDA_BUCKET_NAME": "remotionlambda-useast1-oelksfi1c7",
+  "LAMBDA_REGION": "us-east-1",
+  "LAMBDA_TIMEOUT": "120000",
+  "LAMBDA_MEMORY": "2048",
+  "LAMBDA_MAX_CONCURRENCY": "10",
+  "LAMBDA_MAX_RETRIES": "3"
+}

@@ -70,11 +70,47 @@ export interface SignedUrlOptions {
 }
 
 export interface MultipartUploadOptions {
-  partSize?: number; // Default: 5MB
-  queueSize?: number; // Default: 4
+  partSize?: number; // Default: 5MB (minimum for S3)
+  queueSize?: number; // Default: 4 (concurrent parts)
   metadata?: { [key: string]: string };
   acl?: string;
   storageClass?: string;
+  onProgress?: (progress: UploadProgress) => void;
+  enableRetry?: boolean;
+  maxRetries?: number;
+}
+
+export interface UploadProgress {
+  loaded: number;
+  total: number;
+  percentage: number;
+  parts: {
+    completed: number;
+    total: number;
+  };
+  speed?: number; // bytes per second
+  eta?: number; // estimated time to completion in seconds
+}
+
+export interface MultipartUploadResult extends UploadResult {
+  uploadId: string;
+  parts: Array<{
+    partNumber: number;
+    etag: string;
+    size: number;
+  }>;
+  totalParts: number;
+  uploadTime: number; // milliseconds
+}
+
+export interface S3PerformanceMetrics {
+  operation: string;
+  duration: number; // milliseconds
+  size?: number; // bytes
+  throughput?: number; // bytes per second
+  retryCount?: number;
+  concurrency?: number;
+  partCount?: number;
 }
 
 class S3Service {
@@ -82,6 +118,11 @@ class S3Service {
   private bucketName: string;
   private region: string;
   private publicUrl?: string;
+  private readonly MIN_MULTIPART_SIZE = 5 * 1024 * 1024; // 5MB
+  private readonly DEFAULT_PART_SIZE = 5 * 1024 * 1024; // 5MB
+  private readonly MAX_CONCURRENT_PARTS = 10;
+  private readonly DEFAULT_MAX_RETRIES = 3;
+  private performanceMetrics: S3PerformanceMetrics[] = [];
 
   constructor(config: S3Config) {
     this.bucketName = config.bucketName;
@@ -97,13 +138,15 @@ class S3Service {
       endpoint: config.endpoint,
       forcePathStyle: config.forcePathStyle || false,
       requestHandler: {
-        requestTimeout: 120000, // 2 minutes
-        connectionTimeout: 60000, // 1 minute
+        requestTimeout: 300000, // 5 minutes for large video uploads
+        connectionTimeout: 30000, // 30 seconds for connection
       },
     });
   }
 
   async uploadFile(filePath: string, options: UploadOptions = {}): Promise<UploadResult> {
+    const startTime = Date.now();
+    
     try {
       console.log(`[S3] Uploading file: ${filePath}`);
 
@@ -122,7 +165,6 @@ class S3Service {
         Key: key,
         Body: fileStream,
         ContentType: contentType,
-        ACL: options.acl || 'private',
         Metadata: options.metadata || {},
         ServerSideEncryption: options.serverSideEncryption,
         StorageClass: options.storageClass,
@@ -131,6 +173,16 @@ class S3Service {
 
       const command = new PutObjectCommand(uploadParams);
       const result = await this.s3.send(command);
+
+      const uploadTime = Date.now() - startTime;
+      
+      // Record performance metrics
+      this.recordMetrics({
+        operation: 'single_upload',
+        duration: uploadTime,
+        size: fileStats.size,
+        throughput: fileStats.size / (uploadTime / 1000)
+      });
 
       console.log(`[S3] File uploaded successfully: ${key}`);
 
@@ -162,7 +214,6 @@ class S3Service {
         Key: key,
         Body: buffer,
         ContentType: contentType,
-        ACL: options.acl || 'private',
         Metadata: options.metadata || {},
         ServerSideEncryption: options.serverSideEncryption,
         StorageClass: options.storageClass,
@@ -256,7 +307,7 @@ class S3Service {
     }
   }
 
-  async deleteFile(key: string): Promise<void> {
+  async deleteFile(key: string, maxRetries?: number): Promise<void> {
     try {
       console.log(`[S3] Deleting file: ${key}`);
 
@@ -264,7 +315,11 @@ class S3Service {
         Bucket: this.bucketName,
         Key: key,
       });
-      await this.s3.send(command);
+      
+      const { result: deleteResult, retryCount } = await this.retryOperation(
+        () => this.s3.send(command),
+        maxRetries || this.DEFAULT_MAX_RETRIES
+      );
 
       console.log(`[S3] File deleted successfully: ${key}`);
     } catch (error) {
@@ -273,26 +328,82 @@ class S3Service {
     }
   }
 
-  async deleteFiles(keys: string[]): Promise<void> {
+  async deleteFiles(keys: string[], maxRetries?: number): Promise<{
+    deleted: string[];
+    errors: Array<{ key: string; code: string; message: string }>;
+  }> {
+    if (keys.length === 0) {
+      return { deleted: [], errors: [] };
+    }
+
     try {
       console.log(`[S3] Deleting ${keys.length} files`);
 
-      const deleteParams = {
-        Bucket: this.bucketName,
-        Delete: {
-          Objects: keys.map(key => ({ Key: key })),
-          Quiet: false,
-        },
-      };
+      const deleted: string[] = [];
+      const errors: Array<{ key: string; code: string; message: string }> = [];
+      
+      // Process in batches of 1000 (S3 limit for bulk delete)
+      const batchSize = 1000;
+      
+      for (let i = 0; i < keys.length; i += batchSize) {
+        const batch = keys.slice(i, i + batchSize);
+        
+        const deleteParams = {
+          Bucket: this.bucketName,
+          Delete: {
+            Objects: batch.map(key => ({ Key: key })),
+            Quiet: false,
+          },
+        };
 
-      const command = new DeleteObjectsCommand(deleteParams);
-      const result = await this.s3.send(command);
+        const command = new DeleteObjectsCommand(deleteParams);
+        
+        try {
+          const { result } = await this.retryOperation(
+            () => this.s3.send(command),
+            maxRetries || this.DEFAULT_MAX_RETRIES
+          );
 
-      if (result.Errors && result.Errors.length > 0) {
-        console.warn('[S3] Some files failed to delete:', result.Errors);
+          // Track successful deletions
+          if (result.Deleted) {
+            result.Deleted.forEach(del => {
+              if (del.Key) {
+                deleted.push(del.Key);
+              }
+            });
+          }
+
+          // Track errors
+          if (result.Errors && result.Errors.length > 0) {
+            result.Errors.forEach(err => {
+              if (err.Key && err.Code && err.Message) {
+                errors.push({
+                  key: err.Key,
+                  code: err.Code,
+                  message: err.Message
+                });
+              }
+            });
+          }
+        } catch (batchError) {
+          // If batch fails entirely, mark all keys in batch as failed
+          batch.forEach(key => {
+            errors.push({
+              key,
+              code: 'BatchError',
+              message: batchError instanceof Error ? batchError.message : 'Unknown batch error'
+            });
+          });
+        }
       }
 
-      console.log(`[S3] Files deleted successfully`);
+      console.log(`[S3] Bulk deletion completed: ${deleted.length} deleted, ${errors.length} errors`);
+      
+      if (errors.length > 0) {
+        console.warn('[S3] Some files failed to delete:', errors);
+      }
+
+      return { deleted, errors };
     } catch (error) {
       console.error('[S3] Bulk file deletion failed:', error);
       throw new Error(`Bulk file deletion failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -543,6 +654,437 @@ class S3Service {
     return `https://${this.bucketName}.s3.${this.region}.amazonaws.com/${key}`;
   }
 
+  getPublicUrlForBucket(key: string, bucketName: string): string {
+    if (this.publicUrl) {
+      return `${this.publicUrl}/${key}`;
+    }
+    return `https://${bucketName}.s3.${this.region}.amazonaws.com/${key}`;
+  }
+
+  // ==========================================
+  // PERFORMANCE OPTIMIZATION UTILITIES
+  // ==========================================
+
+  /**
+   * Retry operation with exponential backoff
+   */
+  private async retryOperation<T>(
+    operation: () => Promise<T>,
+    maxRetries: number = this.DEFAULT_MAX_RETRIES,
+    baseDelay: number = 1000
+  ): Promise<{ result: T; retryCount: number }> {
+    let lastError: Error;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const result = await operation();
+        return { result, retryCount: attempt };
+      } catch (error) {
+        lastError = error as Error;
+        
+        if (attempt === maxRetries) {
+          throw lastError;
+        }
+        
+        // Calculate exponential backoff delay
+        const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 1000;
+        console.log(`[S3] Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms delay`);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    
+    throw lastError!;
+  }
+
+  /**
+   * Calculate optimal part size for multipart upload
+   */
+  private calculatePartSize(fileSize: number, maxParts: number = 10000): number {
+    // S3 allows maximum 10,000 parts per upload
+    // Ensure part size is at least 5MB (S3 minimum) and file fits in maxParts
+    let partSize = this.DEFAULT_PART_SIZE;
+    
+    while (Math.ceil(fileSize / partSize) > maxParts) {
+      partSize *= 2;
+    }
+    
+    return Math.max(partSize, this.MIN_MULTIPART_SIZE);
+  }
+
+  /**
+   * Record performance metrics
+   */
+  private recordMetrics(metrics: S3PerformanceMetrics): void {
+    this.performanceMetrics.push({
+      ...metrics,
+      timestamp: Date.now()
+    } as S3PerformanceMetrics & { timestamp: number });
+    
+    // Keep only last 100 metrics to prevent memory leak
+    if (this.performanceMetrics.length > 100) {
+      this.performanceMetrics = this.performanceMetrics.slice(-100);
+    }
+
+    // Enhanced logging with performance data
+    const throughputInfo = metrics.throughput 
+      ? ` (${(metrics.throughput / 1024 / 1024).toFixed(2)} MB/s)` 
+      : '';
+    const sizeInfo = metrics.size 
+      ? ` ${(metrics.size / 1024 / 1024).toFixed(2)}MB` 
+      : '';
+    const retryInfo = metrics.retryCount && metrics.retryCount > 0 
+      ? ` (${metrics.retryCount} retries)` 
+      : '';
+    const concurrencyInfo = metrics.concurrency 
+      ? ` (${metrics.concurrency} concurrent)` 
+      : '';
+
+    console.log(`[S3Performance] ${metrics.operation}: ${metrics.duration}ms${sizeInfo}${throughputInfo}${retryInfo}${concurrencyInfo}`);
+  }
+
+  /**
+   * Get performance statistics
+   */
+  getPerformanceStats(): {
+    operations: { [key: string]: { count: number; avgDuration: number; avgThroughput?: number } };
+    totalOperations: number;
+    last24Hours: S3PerformanceMetrics[];
+  } {
+    const now = Date.now();
+    const last24Hours = this.performanceMetrics.filter(m => 
+      (m as any).timestamp > now - 24 * 60 * 60 * 1000
+    );
+
+    const operations: { [key: string]: { count: number; avgDuration: number; avgThroughput?: number } } = {};
+    
+    last24Hours.forEach(metric => {
+      if (!operations[metric.operation]) {
+        operations[metric.operation] = { count: 0, avgDuration: 0, avgThroughput: 0 };
+      }
+      
+      const op = operations[metric.operation];
+      op.count++;
+      op.avgDuration = (op.avgDuration * (op.count - 1) + metric.duration) / op.count;
+      
+      if (metric.throughput) {
+        op.avgThroughput = (op.avgThroughput! * (op.count - 1) + metric.throughput) / op.count;
+      }
+    });
+
+    return {
+      operations,
+      totalOperations: last24Hours.length,
+      last24Hours
+    };
+  }
+
+  /**
+   * Optimized multipart upload for large files
+   */
+  async uploadFileMultipart(
+    filePath: string, 
+    options: UploadOptions & MultipartUploadOptions = {}
+  ): Promise<MultipartUploadResult> {
+    const startTime = Date.now();
+    
+    try {
+      console.log(`[S3] Starting multipart upload: ${filePath}`);
+
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`File not found: ${filePath}`);
+      }
+
+      const fileStats = fs.statSync(filePath);
+      const fileSize = fileStats.size;
+      
+      // Use multipart only for files larger than threshold
+      if (fileSize < this.MIN_MULTIPART_SIZE) {
+        console.log(`[S3] File size ${fileSize} bytes < ${this.MIN_MULTIPART_SIZE} bytes, using regular upload`);
+        const result = await this.uploadFile(filePath, options);
+        return {
+          ...result,
+          uploadId: 'single-part',
+          parts: [{ partNumber: 1, etag: result.etag || '', size: fileSize }],
+          totalParts: 1,
+          uploadTime: Date.now() - startTime
+        };
+      }
+
+      const fileName = path.basename(filePath);
+      const key = options.key || this.generateKey(fileName);
+      const contentType = options.contentType || this.getContentType(fileName);
+      const partSize = options.partSize || this.calculatePartSize(fileSize);
+      const totalParts = Math.ceil(fileSize / partSize);
+      const maxRetries = options.maxRetries || this.DEFAULT_MAX_RETRIES;
+      
+      console.log(`[S3] Multipart upload config: ${totalParts} parts of ${(partSize / 1024 / 1024).toFixed(2)}MB each`);
+
+      // Step 1: Initialize multipart upload
+      const createMultipartParams = {
+        Bucket: this.bucketName,
+        Key: key,
+        ContentType: contentType,
+        Metadata: options.metadata || {},
+        ServerSideEncryption: options.serverSideEncryption,
+        StorageClass: options.storageClass,
+      };
+
+      const createCommand = new CreateMultipartUploadCommand(createMultipartParams);
+      const { result: createResult } = await this.retryOperation(
+        () => this.s3.send(createCommand),
+        maxRetries
+      );
+      const uploadId = createResult.UploadId;
+
+      if (!uploadId) {
+        throw new Error('Failed to initialize multipart upload');
+      }
+
+      console.log(`[S3] Multipart upload initialized: ${uploadId}`);
+
+      try {
+        // Step 2: Upload parts concurrently with controlled concurrency
+        const parts = await this.uploadPartsStreaming(
+          filePath,
+          uploadId,
+          key,
+          fileSize,
+          partSize,
+          totalParts,
+          options
+        );
+
+        // Step 3: Complete multipart upload
+        const completeParams = {
+          Bucket: this.bucketName,
+          Key: key,
+          UploadId: uploadId,
+          MultipartUpload: {
+            Parts: parts.map(part => ({
+              ETag: part.etag,
+              PartNumber: part.partNumber,
+            })),
+          },
+        };
+
+        const completeCommand = new CompleteMultipartUploadCommand(completeParams);
+        const { result } = await this.retryOperation(
+          () => this.s3.send(completeCommand),
+          maxRetries
+        );
+
+        const uploadTime = Date.now() - startTime;
+        const location = this.getPublicUrl(key);
+
+        // Record performance metrics
+        this.recordMetrics({
+          operation: 'multipart_upload',
+          duration: uploadTime,
+          size: fileSize,
+          throughput: fileSize / (uploadTime / 1000),
+          concurrency: options.queueSize || 4,
+          partCount: totalParts
+        });
+
+        console.log(`[S3] Multipart upload completed in ${uploadTime}ms: ${key}`);
+
+        return {
+          key,
+          url: location,
+          etag: result.ETag,
+          location,
+          bucket: this.bucketName,
+          size: fileSize,
+          contentType,
+          uploadId,
+          parts,
+          totalParts,
+          uploadTime,
+        };
+
+      } catch (error) {
+        // Abort multipart upload on failure
+        console.error('[S3] Multipart upload failed, aborting:', error);
+        await this.abortMultipartUpload(uploadId, key);
+        throw error;
+      }
+
+    } catch (error) {
+      console.error('[S3] Multipart upload failed:', error);
+      throw new Error(`Multipart upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Upload parts using streaming with controlled concurrency
+   */
+  private async uploadPartsStreaming(
+    filePath: string,
+    uploadId: string,
+    key: string,
+    fileSize: number,
+    partSize: number,
+    totalParts: number,
+    options: MultipartUploadOptions
+  ): Promise<Array<{ partNumber: number; etag: string; size: number }>> {
+    const parts: Array<{ partNumber: number; etag: string; size: number }> = [];
+    const concurrency = Math.min(options.queueSize || 4, this.MAX_CONCURRENT_PARTS);
+    const maxRetries = options.maxRetries || this.DEFAULT_MAX_RETRIES;
+    
+    let completedParts = 0;
+    let uploadedBytes = 0;
+    const startTime = Date.now();
+
+    // Create upload tasks
+    const uploadTasks = Array.from({ length: totalParts }, (_, index) => {
+      const partNumber = index + 1;
+      const start = index * partSize;
+      const end = Math.min(start + partSize - 1, fileSize - 1);
+      const currentPartSize = end - start + 1;
+
+      return async (): Promise<{ partNumber: number; etag: string; size: number }> => {
+        const partStartTime = Date.now();
+        
+        // Create readable stream for this part
+        const partStream = fs.createReadStream(filePath, { 
+          start, 
+          end,
+          highWaterMark: 64 * 1024 // 64KB chunks for better memory efficiency
+        });
+
+        const uploadPartParams = {
+          Bucket: this.bucketName,
+          Key: key,
+          PartNumber: partNumber,
+          UploadId: uploadId,
+          Body: partStream,
+          ContentLength: currentPartSize,
+        };
+
+        const uploadPartCommand = new UploadPartCommand(uploadPartParams);
+        const { result } = await this.retryOperation(
+          () => this.s3.send(uploadPartCommand),
+          maxRetries
+        );
+
+        if (!result.ETag) {
+          throw new Error(`Part ${partNumber} upload failed: no ETag returned`);
+        }
+
+        completedParts++;
+        uploadedBytes += currentPartSize;
+
+        // Calculate and report progress
+        if (options.onProgress) {
+          const elapsed = Date.now() - startTime;
+          const speed = uploadedBytes / (elapsed / 1000); // bytes per second
+          const eta = (fileSize - uploadedBytes) / speed;
+
+          options.onProgress({
+            loaded: uploadedBytes,
+            total: fileSize,
+            percentage: (uploadedBytes / fileSize) * 100,
+            parts: {
+              completed: completedParts,
+              total: totalParts,
+            },
+            speed,
+            eta,
+          });
+        }
+
+        const partTime = Date.now() - partStartTime;
+        console.log(`[S3] Part ${partNumber}/${totalParts} uploaded in ${partTime}ms (${(currentPartSize / 1024 / 1024).toFixed(2)}MB)`);
+
+        return {
+          partNumber,
+          etag: result.ETag,
+          size: currentPartSize,
+        };
+      };
+    });
+
+    // Execute uploads with controlled concurrency
+    const results = await this.executeConcurrent(uploadTasks, concurrency);
+    
+    // Sort parts by part number to ensure correct order
+    return results.sort((a, b) => a.partNumber - b.partNumber);
+  }
+
+  /**
+   * Execute tasks with controlled concurrency
+   */
+  private async executeConcurrent<T>(
+    tasks: (() => Promise<T>)[],
+    concurrency: number
+  ): Promise<T[]> {
+    const results: T[] = new Array(tasks.length);
+    let currentIndex = 0;
+
+    // Function to process tasks
+    const processTasks = async (): Promise<void> => {
+      while (currentIndex < tasks.length) {
+        const index = currentIndex++;
+        const task = tasks[index];
+        try {
+          results[index] = await task();
+        } catch (error) {
+          // Re-throw error to be caught by Promise.all
+          throw error;
+        }
+      }
+    };
+
+    // Create workers equal to concurrency limit
+    const workers = Array.from({ length: Math.min(concurrency, tasks.length) }, () => processTasks());
+    
+    await Promise.all(workers);
+    return results;
+  }
+
+  /**
+   * Abort multipart upload
+   */
+  private async abortMultipartUpload(uploadId: string, key: string): Promise<void> {
+    try {
+      const abortCommand = new AbortMultipartUploadCommand({
+        Bucket: this.bucketName,
+        Key: key,
+        UploadId: uploadId,
+      });
+      
+      await this.s3.send(abortCommand);
+      console.log(`[S3] Multipart upload aborted: ${uploadId}`);
+    } catch (error) {
+      console.error('[S3] Failed to abort multipart upload:', error);
+    }
+  }
+
+  /**
+   * Enhanced upload method that automatically chooses between regular and multipart upload
+   */
+  async uploadFileOptimized(
+    filePath: string, 
+    options: UploadOptions & MultipartUploadOptions = {}
+  ): Promise<UploadResult | MultipartUploadResult> {
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+
+    const fileStats = fs.statSync(filePath);
+    const fileSize = fileStats.size;
+
+    // Use multipart upload for files larger than 5MB
+    if (fileSize >= this.MIN_MULTIPART_SIZE) {
+      console.log(`[S3] Using multipart upload for ${(fileSize / 1024 / 1024).toFixed(2)}MB file`);
+      return this.uploadFileMultipart(filePath, options);
+    } else {
+      console.log(`[S3] Using regular upload for ${(fileSize / 1024 / 1024).toFixed(2)}MB file`);
+      return this.uploadFile(filePath, options);
+    }
+  }
+
   // ==========================================
   // AUDIO-SPECIFIC METHODS
   // ==========================================
@@ -614,9 +1156,9 @@ class S3Service {
       const command = new PutObjectCommand(uploadParams);
       const result = await this.s3.send(command);
 
-      // Generate appropriate URL based on ACL
+      // Generate appropriate URL based on ACL using the correct bucket
       const url = config.acl === 'public-read'
-        ? this.getPublicUrl(key)
+        ? this.getPublicUrlForBucket(key, config.bucket)
         : await this.getSignedUrl(key, 'getObject', { expires: config.signedUrlExpiry });
 
       console.log(`[S3Audio] ${type} audio uploaded successfully: ${key}`);
