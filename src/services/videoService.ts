@@ -34,6 +34,7 @@ export interface VideoGenerationRequest {
 export interface VideoGenerationResult {
   success: boolean;
   outputPath?: string;
+  videoUrl?: string; // Added for real-time WebSocket integration
   sizeInBytes?: number;
   durationInSeconds?: number;
   width?: number;
@@ -183,7 +184,7 @@ export class VideoService {
       onProgress?.({
         phase: 'caching',
         progress: 2,
-        message: 'Initializing enhanced video cache and optimization system...'
+        message: 'Warming up the video kitchen... 🔥'
       });
       await this.initializeCache();
     }
@@ -205,7 +206,7 @@ export class VideoService {
     onProgress?.({
       phase: 'caching',
       progress: 5,
-      message: 'Scanning config for R2 videos and optimizing...'
+      message: 'Checking ingredients for your video recipe... 🔍'
     });
 
     try {
@@ -217,14 +218,14 @@ export class VideoService {
         onProgress?.({
           phase: 'caching',
           progress: 15,
-          message: `Cached and optimized ${cacheResult.r2Urls.length} R2 videos successfully`
+          message: `Pre-loaded ${cacheResult.r2Urls.length} video assets! ⚡ This will make things faster.`
         });
       } else {
         console.log('[VideoService] No R2 videos found in config');
         onProgress?.({
           phase: 'caching',
           progress: 15,
-          message: 'No R2 videos to optimize'
+          message: 'Everything looks good! ✅ Ready to create your video.'
         });
       }
 
@@ -727,17 +728,73 @@ export class VideoService {
 
   async generateVideo(
     request: VideoGenerationRequest,
-    onProgress?: ProgressCallback
+    onProgress?: ProgressCallback,
+    frontendSocketId?: string
   ): Promise<VideoGenerationResult> {
-    // Check if using remote video service
-    if (this.videoServicePath.startsWith('http://') || this.videoServicePath.startsWith('https://')) {
+    console.log('[VideoService] DEBUG - videoServicePath:', this.videoServicePath);
+    
+    // SIMPLIFIED: Multi-tier processing disabled in favor of direct Lambda approach
+    const useMultiTier = false; // Disabled in simplification
+    
+    if (useMultiTier) {
+      console.log('[VideoService] Multi-tier processing disabled in simplified implementation');
+      throw new Error('Multi-tier processing has been simplified. Use direct Lambda service instead.');
+    }
+    
+    console.log('[VideoService] DEBUG - Lambda detection:', {
+      startsWithHttps: this.videoServicePath.startsWith('https://'),
+      includesS3: this.videoServicePath.includes('s3.amazonaws.com'),
+      includesRemotionLambda: this.videoServicePath.includes('remotionlambda-'),
+      willUseLambda: this.videoServicePath.startsWith('https://') && (this.videoServicePath.includes('s3.amazonaws.com') || this.videoServicePath.includes('remotionlambda-')),
+      fullPath: this.videoServicePath
+    });
+    
+    // Generate videoId first (needed by all code paths)
+    const videoId = `${request.type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Check if using Lambda video service (S3 site URL indicates Lambda deployment)
+    if (this.videoServicePath.startsWith('https://') && (this.videoServicePath.includes('s3.amazonaws.com') || this.videoServicePath.includes('remotionlambda-'))) {
+      console.log('[VideoService] ⚡ Using Lambda video service for generation');
+      const { productionLambdaVideoService: lambdaVideoService } = await import('./lambdaVideoService');
+      
+      const lambdaResult = await lambdaVideoService.generateVideo(request, videoId, (progress) => {
+        if (onProgress) {
+          onProgress({
+            phase: progress.phase as any,
+            progress: progress.progress,
+            message: progress.message || ''
+          });
+        }
+      });
+
+      if (!lambdaResult.success) {
+        throw new Error(lambdaResult.error || 'Lambda video generation failed');
+      }
+
+      return {
+        success: true,
+        videoUrl: lambdaResult.videoUrl!,
+        outputPath: lambdaResult.videoUrl!,
+        sizeInBytes: lambdaResult.sizeInBytes || 0,
+        durationInSeconds: lambdaResult.durationInSeconds || 0,
+        renderTimeMs: (lambdaResult.renderTime || 0) * 1000,
+        cacheInfo: { 
+          hadR2Videos: false, 
+          cachedUrls: 0, 
+          cacheProcessingTimeMs: 0, 
+          urlMappings: {} 
+        }
+      };
+    }
+    
+    // Check if using traditional remote video service (WebSocket-based)
+    if (this.videoServicePath.startsWith('http://') || (this.videoServicePath.startsWith('https://') && !this.videoServicePath.includes('s3.amazonaws.com'))) {
       console.log('[VideoService] 🌐 Using remote video service for generation');
       const { remoteVideoService } = await import('./remoteVideoService');
-      return remoteVideoService.generateVideo(request, onProgress);
+      return remoteVideoService.generateVideo(request, onProgress, frontendSocketId);
     }
     
     const startTime = Date.now();
-    const videoId = `${request.type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const outputPath = path.join(this.rendersDir, `${videoId}.mp4`);
 
     // Declare variables outside try block so they're accessible in catch
@@ -770,7 +827,7 @@ export class VideoService {
       onProgress?.({
         phase: 'bundling',
         progress: 20,
-        message: 'Preparing Remotion bundle...'
+        message: 'Setting up video components... 📦'
       });
 
       bundleLocation = await this.getBundle();
@@ -778,7 +835,7 @@ export class VideoService {
       onProgress?.({
         phase: 'bundling',
         progress: 35,
-        message: 'Bundle ready, getting composition...'
+        message: 'Loading your video template... 🎬'
       });
 
       // Phase 2: Get composition (with processed config)
@@ -810,7 +867,7 @@ export class VideoService {
       onProgress?.({
         phase: 'rendering',
         progress: 45,
-        message: `Rendering ${composition.durationInFrames} frames${cacheInfo?.hadR2Videos ? ' (using cached videos)' : ''}...`
+        message: 'Starting video magic... ✨ This is where the fun begins!'
       });
 
       // Phase 3: Render video with cached R2 videos (should be much faster now!)
@@ -823,14 +880,14 @@ export class VideoService {
         // ✅ REDUCED TIMEOUT: With cached videos, we don't need as long
         timeoutInMilliseconds: cacheInfo?.hadR2Videos ? 60000 : 120000, // 1 min for cached, 2 min for uncached
         onProgress: ({ renderedFrames, encodedFrames, progress: renderProgress }) => {
-          const totalFrames = composition.durationInFrames;
-          const progress = Math.round(renderProgress * 45) + 45; // 45-90%
+          // Disable fluctuating progress - just show steady processing message
+          const steadyProgress = Math.max(45, Math.min(85, 45 + (renderProgress * 40))); // Steady 45-85% range
           onProgress?.({
             phase: 'rendering',
-            progress,
-            message: `Rendered ${renderedFrames}/${totalFrames} frames${cacheInfo?.hadR2Videos ? ' (cached)' : ''}`,
+            progress: steadyProgress,
+            message: 'Creating your amazing video... This usually takes 30-60 seconds.',
             renderedFrames,
-            totalFrames
+            totalFrames: composition.durationInFrames
           });
         },
         onDownload: (src) => {
@@ -841,7 +898,7 @@ export class VideoService {
       onProgress?.({
         phase: 'encoding',
         progress: 95,
-        message: 'Finalizing video...'
+        message: 'Adding final touches... 🎨 Almost done!'
       });
 
       // Get file stats
@@ -858,7 +915,7 @@ export class VideoService {
       onProgress?.({
         phase: 'completed',
         progress: 100,
-        message: 'Video generation completed!'
+        message: '🎉 Your amazing video is ready!'
       });
 
       return {
@@ -919,14 +976,14 @@ export class VideoService {
             // ✅ CRITICAL: Add timeout for fallback rendering too
             timeoutInMilliseconds: 120000, // 2 minutes
             onProgress: ({ renderedFrames, encodedFrames, progress: renderProgress }) => {
-              const totalFrames = composition.durationInFrames;
-              const progress = Math.round(renderProgress * 60) + 30; // 30-90%
+              // Simplified steady progress for fallback rendering
+              const steadyProgress = Math.max(30, Math.min(85, 30 + (renderProgress * 55))); // Steady 30-85% range
               onProgress?.({
                 phase: 'rendering',
-                progress,
-                message: `Rendering with fallback background... ${renderedFrames}/${totalFrames}`,
+                progress: steadyProgress,
+                message: 'Optimizing video quality... Almost ready!',
                 renderedFrames,
-                totalFrames
+                totalFrames: composition.durationInFrames
               });
             }
           });

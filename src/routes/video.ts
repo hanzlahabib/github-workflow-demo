@@ -13,13 +13,14 @@ const videoStatuses: { [videoId: string]: {
   progress: number;
   message: string;
   outputPath?: string;
+  videoUrl?: string; // Added for WebSocket real-time progress
   error?: string;
   sizeInBytes?: number;
   duration?: number;
 } } = {};
 
 // Native video generation function using Remotion programmatic API
-async function generateVideoAsync(videoId: string, type: string, input: any, settings: any) {
+async function generateVideoAsync(videoId: string, type: string, input: any, settings: any, socketId?: string) {
   try {
     console.log(`[VideoGen] Starting native video generation for ${videoId}`);
     videoStatuses[videoId] = { status: 'processing', progress: 5, message: 'Initializing video service...' };
@@ -59,25 +60,38 @@ async function generateVideoAsync(videoId: string, type: string, input: any, set
     const result = await videoService.generateVideo(request, (progress) => {
       console.log(`[VideoGen] Progress update:`, progress);
 
-      // Update status based on progress
+      // Update status based on progress  
       videoStatuses[videoId] = {
         status: 'processing',
         progress: progress.progress,
         message: progress.message
       };
-    });
+    }, socketId);
 
     if (result.success && result.outputPath) {
       console.log(`[VideoGen] Video generation completed for ${videoId}`);
 
-      // Get the filename from the full path
-      const fileName = path.basename(result.outputPath);
+      // For remote video service, preserve the full videoUrl
+      // For local video service, create download path
+      let finalOutputPath = result.outputPath;
+      
+      if (result.videoUrl) {
+        // Remote video service provided full URL, use it directly
+        finalOutputPath = result.videoUrl;
+        console.log(`[VideoGen] Using remote video URL: ${finalOutputPath}`);
+      } else if (!result.outputPath.startsWith('http')) {
+        // Local video service, create download path
+        const fileName = path.basename(result.outputPath);
+        finalOutputPath = `/api/video/download/${fileName}`;
+        console.log(`[VideoGen] Created local download path: ${finalOutputPath}`);
+      }
 
       videoStatuses[videoId] = {
         status: 'completed',
         progress: 100,
         message: 'Video generation completed successfully!',
-        outputPath: `/api/video/download/${fileName}`,
+        outputPath: finalOutputPath,
+        videoUrl: finalOutputPath, // Include videoUrl for frontend
         sizeInBytes: result.sizeInBytes,
         duration: result.durationInSeconds
       };
@@ -111,19 +125,20 @@ router.post('/generate', async (req, res) => {
   const requestId = (req as any).requestId || Math.random().toString(36).substr(2, 9);
   
   try {
-    const { type, input, settings, userId } = req.body;
+    const { type, input, settings, userId, socketId } = req.body;
     
     console.log(`[Video][${requestId}] Generation request:`, {
       type,
       userId,
+      socketId,
       hasConfig: !!(input?.config)
     });
 
     // Create a video ID
     const videoId = `video_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Process video generation asynchronously
-    generateVideoAsync(videoId, type, input, settings).catch(error => {
+    // Process video generation asynchronously with socketId
+    generateVideoAsync(videoId, type, input, settings, socketId).catch(error => {
       console.error(`[Video][${requestId}] Background generation failed for ${videoId}:`, error);
     });
 
@@ -174,6 +189,109 @@ router.get('/status/:videoId', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to check video status'
+    });
+  }
+});
+
+/**
+ * @route POST /api/video/cancel/:videoId
+ * @desc Cancel an active video generation
+ * @access Public
+ */
+router.post('/cancel/:videoId', async (req, res) => {
+  try {
+    const { videoId } = req.params;
+    console.log(`[Video] Cancel request: ${videoId}`);
+
+    const status = videoStatuses[videoId];
+    if (!status) {
+      return res.json({
+        success: false,
+        error: 'Video not found',
+        videoId
+      });
+    }
+
+    if (status.status !== 'processing') {
+      return res.json({
+        success: false,
+        error: `Cannot cancel video in ${status.status} state`,
+        videoId
+      });
+    }
+
+    // Try to cancel the Lambda render if it's using Lambda
+    let lambdaCancelResult = { success: false, message: 'Not a Lambda render' };
+    
+    try {
+      const { productionLambdaVideoService: lambdaVideoService } = await import('../services/lambdaVideoService');
+      lambdaCancelResult = await lambdaVideoService.cancelRender(videoId);
+    } catch (error) {
+      console.warn(`[Video] Lambda cancellation not available:`, error);
+    }
+
+    // Update status to cancelled
+    videoStatuses[videoId] = {
+      ...status,
+      status: 'cancelled',
+      progress: 0,
+      message: 'Video generation cancelled by user',
+      error: 'Cancelled by user'
+    };
+
+    console.log(`[Video] Successfully cancelled: ${videoId}`);
+
+    res.json({
+      success: true,
+      videoId,
+      message: 'Video generation cancelled',
+      lambdaCancel: lambdaCancelResult
+    });
+
+  } catch (error) {
+    console.error('[Video] Cancel error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to cancel video generation',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * @route GET /api/video/active
+ * @desc Get all active renders
+ * @access Public
+ */
+router.get('/active', async (req, res) => {
+  try {
+    let lambdaActive: string[] = [];
+    
+    try {
+      const { productionLambdaVideoService: lambdaVideoService } = await import('../services/lambdaVideoService');
+      lambdaActive = lambdaVideoService.getActiveRenders();
+    } catch (error) {
+      console.warn(`[Video] Lambda service not available:`, error);
+    }
+
+    const localActive = Object.keys(videoStatuses).filter(
+      videoId => videoStatuses[videoId].status === 'processing'
+    );
+
+    res.json({
+      success: true,
+      activeRenders: {
+        lambda: lambdaActive,
+        local: localActive,
+        total: lambdaActive.length + localActive.length
+      }
+    });
+
+  } catch (error) {
+    console.error('[Video] Active renders error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get active renders'
     });
   }
 });
