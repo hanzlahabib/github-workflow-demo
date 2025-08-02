@@ -19,84 +19,131 @@ const videoStatuses: { [videoId: string]: {
   duration?: number;
 } } = {};
 
-// Native video generation function using Remotion programmatic API
+// Lambda video generation function using maximum performance Lambda
 async function generateVideoAsync(videoId: string, type: string, input: any, settings: any, socketId?: string) {
   try {
-    console.log(`[VideoGen] Starting native video generation for ${videoId}`);
-    videoStatuses[videoId] = { status: 'processing', progress: 5, message: 'Initializing video service...' };
+    console.log(`[VideoGen] Starting Lambda video generation for ${videoId}`);
+    videoStatuses[videoId] = { status: 'processing', progress: 5, message: 'Initializing Lambda service...' };
 
-    // Import the native video service
-    const { videoService } = await import('../services/videoService');
+    // Import the simplified Lambda service for maximum performance
+    const { simpleLambdaService } = await import('../services/simpleLambdaService');
 
-    // Prepare the request - PRESERVE ORIGINAL INPUT INCLUDING CONFIG
-    const request = {
-      type: type as 'story' | 'reddit' | 'quiz' | 'educational',
-      input: {
-        text: input.text || input.script || 'Default video content',
-        script: input.script,
-        title: input.title,
-        config: input.config // ✅ CRITICAL: Preserve enhanced config from frontend
+    // Prepare Lambda render request - match video service expected format
+    const lambdaRequest = {
+      id: videoId,
+      inputProps: {
+        // The video service expects a 'config' object with messages, not flat props
+        config: input.config || {
+          messages: input.conversations?.[0]?.messages || [
+            {
+              id: '1',
+              text: input.text || input.script || 'Default video content',
+              from: 'sender',
+              duration: 2
+            }
+          ],
+          messageMetadata: input.messageMetadata || {
+            username: 'User',
+            pfp: '',
+            darkMode: false,
+            unreadMessages: '0',
+            ui: 'iOS Dark'
+          },
+          durationInSeconds: settings.duration || 30
+        }
       },
-      settings: {
-        duration: settings.duration || 30,
-        width: settings.width || 1080,
-        height: settings.height || 1920,
-        fps: settings.fps || 30,
-        voice: settings.voice || 'default',
-        background: settings.background || '#000000',
-        language: settings.language || 'en'
-      },
-      userId: 'video_generation_user'
+      fileName: `${videoId}.mp4`,
+      key: `renders/${videoId}/${videoId}.mp4`,
+      videoId: videoId
     };
 
-    console.log(`[VideoGen] Request prepared:`, {
-      type: request.type,
-      textLength: request.input.text?.length,
-      actualText: request.input.text,
-      duration: request.settings.duration
+    console.log(`[VideoGen] Lambda request prepared:`, {
+      videoId,
+      hasConfig: !!input.config,
+      hasVideoUrl: !!input.videoUrl,
+      duration: settings.duration
     });
 
-    // Generate video with progress callback
-    const result = await videoService.generateVideo(request, (progress) => {
-      console.log(`[VideoGen] Progress update:`, progress);
+    // Start Lambda render with maximum performance
+    videoStatuses[videoId] = { status: 'processing', progress: 10, message: 'Starting Lambda render with 15-minute timeout...' };
+    const renderResult = await simpleLambdaService.startRender(lambdaRequest);
+    
+    console.log(`[VideoGen] Lambda render started: ${renderResult.renderId}`);
+    videoStatuses[videoId] = { status: 'processing', progress: 15, message: 'Lambda render started, monitoring progress...' };
 
-      // Update status based on progress  
-      videoStatuses[videoId] = {
-        status: 'processing',
-        progress: progress.progress,
-        message: progress.message
-      };
-    }, socketId);
-
-    if (result.success && result.outputPath) {
-      console.log(`[VideoGen] Video generation completed for ${videoId}`);
-
-      // For remote video service, preserve the full videoUrl
-      // For local video service, create download path
-      let finalOutputPath = result.outputPath;
-      
-      if (result.videoUrl) {
-        // Remote video service provided full URL, use it directly
-        finalOutputPath = result.videoUrl;
-        console.log(`[VideoGen] Using remote video URL: ${finalOutputPath}`);
-      } else if (!result.outputPath.startsWith('http')) {
-        // Local video service, create download path
-        const fileName = path.basename(result.outputPath);
-        finalOutputPath = `/api/video/download/${fileName}`;
-        console.log(`[VideoGen] Created local download path: ${finalOutputPath}`);
+    // Poll for completion with manual progress monitoring for better frontend updates
+    let completed = false;
+    let finalResult = null;
+    
+    // Start progress polling in background
+    const pollProgress = async () => {
+      while (!completed) {
+        try {
+          await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2 seconds
+          
+          const progress = await simpleLambdaService.getRenderProgress({
+            id: renderResult.renderId,
+            bucketName: renderResult.bucketName
+          });
+          
+          console.log(`[VideoGen] Lambda progress:`, progress);
+          
+          if (progress.type === 'done' && progress.url) {
+            // Render completed successfully
+            completed = true;
+            finalResult = progress.url;
+            
+            videoStatuses[videoId] = {
+              status: 'completed',
+              progress: 100,
+              message: 'Video generation completed successfully!',
+              outputPath: progress.url,
+              videoUrl: progress.url,
+              sizeInBytes: progress.size || 0,
+              duration: 0
+            };
+            
+            console.log(`[VideoGen] Lambda render completed: ${progress.url}`);
+            break;
+          } else if (progress.type === 'progress') {
+            // Update progress for frontend
+            const progressPercentage = Math.round(progress.progress || 0);
+            videoStatuses[videoId] = {
+              status: 'processing',
+              progress: progressPercentage,
+              message: `Rendering video on Lambda... ${progressPercentage}% complete`
+            };
+            
+            console.log(`[VideoGen] Progress update: ${progressPercentage}%`);
+          }
+        } catch (error) {
+          console.error(`[VideoGen] Progress polling error:`, error);
+          if (!completed) {
+            // Continue polling unless we're explicitly done
+            await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5s on error
+          }
+        }
       }
+    };
+    
+    // Start polling
+    pollProgress();
+    
+    // Wait for completion with timeout (15 minutes + buffer)
+    const maxWaitTime = 16 * 60 * 1000; // 16 minutes
+    const startTime = Date.now();
+    
+    while (!completed && (Date.now() - startTime) < maxWaitTime) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    const result = finalResult;
 
-      videoStatuses[videoId] = {
-        status: 'completed',
-        progress: 100,
-        message: 'Video generation completed successfully!',
-        outputPath: finalOutputPath,
-        videoUrl: finalOutputPath, // Include videoUrl for frontend
-        sizeInBytes: result.sizeInBytes,
-        duration: result.durationInSeconds
-      };
-    } else {
-      console.error(`[VideoGen] Video generation failed for ${videoId}:`, result.error);
+    if (result) {
+      console.log(`[VideoGen] Lambda video generation completed for ${videoId}: ${result}`);
+      // Success case is already handled in the polling loop above
+    } else if (!completed) {
+      console.error(`[VideoGen] Lambda render timed out after 16 minutes for ${videoId}`);
       videoStatuses[videoId] = {
         status: 'failed',
         progress: 0,
