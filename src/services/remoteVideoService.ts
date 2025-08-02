@@ -87,7 +87,7 @@ export class RemoteVideoService {
           width: request.settings?.width || 1080,
           height: request.settings?.height || 1920,
           fps: request.settings?.fps || 30,
-          fastMode: request.settings?.fastMode || false, // Enable fast rendering mode
+          // fastMode: request.settings?.fastMode || false, // Removed in simplification
         },
         socketId: socket.id
       };

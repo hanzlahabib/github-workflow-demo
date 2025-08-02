@@ -733,59 +733,12 @@ export class VideoService {
   ): Promise<VideoGenerationResult> {
     console.log('[VideoService] DEBUG - videoServicePath:', this.videoServicePath);
     
-    // NEW: Check if multi-tier processing is enabled
-    const useMultiTier = process.env.ENABLE_MULTI_TIER_PROCESSING === 'true';
+    // SIMPLIFIED: Multi-tier processing disabled in favor of direct Lambda approach
+    const useMultiTier = false; // Disabled in simplification
     
     if (useMultiTier) {
-      console.log('[VideoService] 🚀 Using multi-tier video processing orchestrator');
-      const { videoProcessingOrchestrator } = await import('./videoProcessingOrchestrator');
-      
-      const orchestratorResult = await videoProcessingOrchestrator.processVideo(
-        {
-          type: request.type,
-          input: request.input,
-          settings: request.settings,
-          userId: request.userId,
-          priority: 'medium',
-          options: {
-            enableFallback: true,
-            maxTimeMinutes: 15
-          }
-        },
-        (progress) => {
-          if (onProgress) {
-            onProgress({
-              phase: progress.phase as any,
-              progress: progress.progress,
-              message: progress.message || ''
-            });
-          }
-        }
-      );
-      
-      if (orchestratorResult.success) {
-        return {
-          success: true,
-          videoUrl: orchestratorResult.videoUrl!,
-          outputPath: orchestratorResult.videoUrl!,
-          sizeInBytes: orchestratorResult.performance.sizeInBytes || 0,
-          durationInSeconds: orchestratorResult.performance.processingTimeMs / 1000,
-          renderTimeMs: orchestratorResult.performance.processingTimeMs,
-          cacheInfo: orchestratorResult.preprocessing ? {
-            hadR2Videos: orchestratorResult.preprocessing.applied,
-            cachedUrls: 1,
-            cacheProcessingTimeMs: orchestratorResult.preprocessing.timeMs,
-            urlMappings: {}
-          } : {
-            hadR2Videos: false,
-            cachedUrls: 0,
-            cacheProcessingTimeMs: 0,
-            urlMappings: {}
-          }
-        };
-      } else {
-        throw new Error(orchestratorResult.error || 'Multi-tier video processing failed');
-      }
+      console.log('[VideoService] Multi-tier processing disabled in simplified implementation');
+      throw new Error('Multi-tier processing has been simplified. Use direct Lambda service instead.');
     }
     
     console.log('[VideoService] DEBUG - Lambda detection:', {

@@ -27,7 +27,7 @@ export class AudioCleanupWorker {
       case 'development':
         schedule = '0 */6 * * *'; // Every 6 hours - frequent cleanup for dev
         break;
-      case 'staging':
+      case 'test':
         schedule = '0 */12 * * *'; // Every 12 hours
         break;
       case 'production':
