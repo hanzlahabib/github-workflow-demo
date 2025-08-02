@@ -80,21 +80,32 @@ class UnifiedLambdaDeployment {
   }
 
   /**
-   * Deploy Lambda function with optimal settings
+   * Deploy Lambda function with MAXIMUM PERFORMANCE settings
    */
   private async deployFunction(): Promise<any> {
-    console.log(`📦 Deploying function: ${lambdaConfig.functionName}`);
+    console.log(`📦 Deploying HIGH-PERFORMANCE function: ${lambdaConfig.functionName}`);
+    console.log(`🚀 MAXIMUM SPECS: ${lambdaConfig.memory}MB RAM, ${lambdaConfig.timeout}s timeout, ${lambdaConfig.diskSize}MB disk`);
 
     try {
       const result = await deployFunction({
         region: lambdaConfig.region,
         functionName: lambdaConfig.functionName,
-        memorySizeInMb: lambdaConfig.memory,
-        timeoutInSeconds: lambdaConfig.timeout,
-        diskSizeInMb: lambdaConfig.diskSize,
+        memorySizeInMb: lambdaConfig.memory, // 3008MB (maximum)
+        timeoutInSeconds: lambdaConfig.timeout, // 900s (15 minutes maximum)
+        diskSizeInMb: lambdaConfig.diskSize, // 10GB (maximum)
         createCloudWatchLogGroup: true,
-        architecture: 'x86_64', // Better compatibility
-        enableLambdaInsights: lambdaConfig.enableInsights
+        architecture: 'x86_64', // Better compatibility for video processing
+        enableLambdaInsights: lambdaConfig.enableInsights,
+        // Additional performance optimizations
+        runtime: 'nodejs20.x', // Latest Node.js for best performance
+        environment: {
+          // Optimize Node.js for video processing
+          NODE_ENV: 'production',
+          NODE_OPTIONS: '--max-old-space-size=2900', // Use most of the 3008MB memory
+          // Remotion-specific optimizations
+          REMOTION_CONCURRENCY_PER_LAMBDA: lambdaConfig.concurrencyPerLambda.toString(),
+          REMOTION_FRAMES_PER_LAMBDA: lambdaConfig.framesPerLambda.toString()
+        }
       });
 
       console.log(`✅ Function deployed: ${result.functionName}`);
