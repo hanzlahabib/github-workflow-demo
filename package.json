@@ -16,7 +16,8 @@
     "deploy-lambda": "npx ts-node deploy-lambda-unified.ts",
     "test-lambda": "node test-lambda-simplified.js",
     "test-lambda-config": "node test-lambda-simplified.js config",
-    "test-lambda-api": "node test-lambda-simplified.js api"
+    "test-lambda-api": "node test-lambda-simplified.js api",
+    "test-lambda-cancel": "node test-lambda-cancel.js"
   },
   "keywords": [],
   "author": "",
