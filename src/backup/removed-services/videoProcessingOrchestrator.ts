@@ -12,7 +12,7 @@
 import { EventEmitter } from 'events';
 import { videoSizeDetector, type RoutingDecision } from './videoSizeDetector';
 import { videoService } from './videoService';
-import { lambdaVideoService } from './lambdaVideoService';
+import { productionLambdaVideoService as lambdaVideoService } from './lambdaVideoService';
 import { ecsVideoService } from './ecsVideoService';
 import { videoPreprocessingPipeline } from './videoPreprocessingPipeline';
 
@@ -572,7 +572,7 @@ export class VideoProcessingOrchestrator extends EventEmitter {
       
       case 2:
         // Enhanced Lambda
-        const tier2Result = await lambdaVideoService.generateVideo(wrappedRequest, (progress) => {
+        const tier2Result = await lambdaVideoService.generateVideo(wrappedRequest, videoId, (progress) => {
           onProgress?.({
             phase: 'processing',
             progress: 40 + (progress.progress * 0.5), // Map to 40-90%
