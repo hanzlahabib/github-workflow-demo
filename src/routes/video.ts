@@ -194,6 +194,109 @@ router.get('/status/:videoId', async (req, res) => {
 });
 
 /**
+ * @route POST /api/video/cancel/:videoId
+ * @desc Cancel an active video generation
+ * @access Public
+ */
+router.post('/cancel/:videoId', async (req, res) => {
+  try {
+    const { videoId } = req.params;
+    console.log(`[Video] Cancel request: ${videoId}`);
+
+    const status = videoStatuses[videoId];
+    if (!status) {
+      return res.json({
+        success: false,
+        error: 'Video not found',
+        videoId
+      });
+    }
+
+    if (status.status !== 'processing') {
+      return res.json({
+        success: false,
+        error: `Cannot cancel video in ${status.status} state`,
+        videoId
+      });
+    }
+
+    // Try to cancel the Lambda render if it's using Lambda
+    let lambdaCancelResult = { success: false, message: 'Not a Lambda render' };
+    
+    try {
+      const { productionLambdaVideoService: lambdaVideoService } = await import('../services/lambdaVideoService');
+      lambdaCancelResult = await lambdaVideoService.cancelRender(videoId);
+    } catch (error) {
+      console.warn(`[Video] Lambda cancellation not available:`, error);
+    }
+
+    // Update status to cancelled
+    videoStatuses[videoId] = {
+      ...status,
+      status: 'cancelled',
+      progress: 0,
+      message: 'Video generation cancelled by user',
+      error: 'Cancelled by user'
+    };
+
+    console.log(`[Video] Successfully cancelled: ${videoId}`);
+
+    res.json({
+      success: true,
+      videoId,
+      message: 'Video generation cancelled',
+      lambdaCancel: lambdaCancelResult
+    });
+
+  } catch (error) {
+    console.error('[Video] Cancel error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to cancel video generation',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * @route GET /api/video/active
+ * @desc Get all active renders
+ * @access Public
+ */
+router.get('/active', async (req, res) => {
+  try {
+    let lambdaActive: string[] = [];
+    
+    try {
+      const { productionLambdaVideoService: lambdaVideoService } = await import('../services/lambdaVideoService');
+      lambdaActive = lambdaVideoService.getActiveRenders();
+    } catch (error) {
+      console.warn(`[Video] Lambda service not available:`, error);
+    }
+
+    const localActive = Object.keys(videoStatuses).filter(
+      videoId => videoStatuses[videoId].status === 'processing'
+    );
+
+    res.json({
+      success: true,
+      activeRenders: {
+        lambda: lambdaActive,
+        local: localActive,
+        total: lambdaActive.length + localActive.length
+      }
+    });
+
+  } catch (error) {
+    console.error('[Video] Active renders error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get active renders'
+    });
+  }
+});
+
+/**
  * @route GET /api/video/renders
  * @desc List all rendered videos
  * @access Public

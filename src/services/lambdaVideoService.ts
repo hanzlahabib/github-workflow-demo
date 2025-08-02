@@ -1,13 +1,18 @@
-import { renderMediaOnLambda, getRenderProgress, type AwsRegion } from '@remotion/lambda';
+import { 
+  renderMediaOnLambda, 
+  getRenderProgress, 
+  deleteRender,
+  type AwsRegion 
+} from '@remotion/lambda';
 
-// Import the same interfaces used by the main video service
+// Production-ready interfaces
 export interface VideoGenerationRequest {
   type: 'story' | 'reddit' | 'quiz' | 'educational' | 'text-story';
   input: {
     text?: string;
     script?: string;
     title?: string;
-    config?: any; // Enhanced frontend config object with all new settings
+    config?: any;
   };
   settings: {
     duration?: number;
@@ -17,6 +22,7 @@ export interface VideoGenerationRequest {
     quality?: number;
     outputFormat?: 'mp4' | 'webm';
   };
+  userId: string;
 }
 
 export interface LambdaVideoResult {
@@ -27,6 +33,7 @@ export interface LambdaVideoResult {
   durationInSeconds?: number;
   error?: string;
   renderTime?: number;
+  cost?: number;
 }
 
 export interface LambdaProgressCallback {
@@ -35,323 +42,442 @@ export interface LambdaProgressCallback {
     progress: number; // 0-100
     message?: string;
     renderId?: string;
+    estimatedTimeRemaining?: number;
+    cost?: number;
   }): void;
 }
 
-class LambdaVideoService {
-  private functionName: string;
-  private siteUrl: string;
-  private region: AwsRegion;
-  private readonly POLLING_INTERVAL = 2000; // 2 seconds
-  private readonly MAX_WAIT_TIME = 600000; // 10 minutes
+export interface LambdaConfig {
+  functionName: string;
+  region: AwsRegion;
+  bucketName: string;
+  timeout: number;
+  memory: number;
+  maxConcurrency: number;
+  maxRetries: number;
+}
+
+class ProductionLambdaVideoService {
+  private config: LambdaConfig;
+  private activeRenders: Map<string, {
+    renderId: string;
+    bucketName: string;
+    startTime: number;
+    cancelled: boolean;
+  }> = new Map();
 
   constructor() {
-    this.functionName = process.env.LAMBDA_FUNCTION_NAME || '';
-    this.siteUrl = process.env.LAMBDA_SITE_URL || '';
-    this.region = (process.env.LAMBDA_REGION as AwsRegion) || 'us-east-1';
+    this.config = this.loadConfiguration();
+    this.validateConfiguration();
+  }
 
-    if (!this.functionName || !this.siteUrl) {
-      console.warn('[LambdaVideoService] Lambda configuration missing. Set LAMBDA_FUNCTION_NAME and LAMBDA_SITE_URL');
+  private loadConfiguration(): LambdaConfig {
+    return {
+      functionName: process.env.LAMBDA_FUNCTION_NAME || '',
+      region: (process.env.LAMBDA_REGION as AwsRegion) || 'us-east-1',
+      bucketName: process.env.LAMBDA_BUCKET_NAME || '',
+      timeout: parseInt(process.env.LAMBDA_TIMEOUT || '120000'),
+      memory: parseInt(process.env.LAMBDA_MEMORY || '2048'),
+      maxConcurrency: parseInt(process.env.LAMBDA_MAX_CONCURRENCY || '10'),
+      maxRetries: parseInt(process.env.LAMBDA_MAX_RETRIES || '3')
+    };
+  }
+
+  private validateConfiguration(): void {
+    const issues: string[] = [];
+    
+    if (!this.config.functionName) issues.push('LAMBDA_FUNCTION_NAME not set');
+    if (!this.config.bucketName) issues.push('LAMBDA_BUCKET_NAME not set');
+    
+    if (issues.length > 0) {
+      throw new Error(`Lambda configuration invalid: ${issues.join(', ')}`);
     }
   }
 
   /**
-   * Wait for Lambda render to complete by polling getRenderProgress
-   * @param renderId The render ID to monitor
-   * @param bucketName The S3 bucket name
-   * @param onProgress Optional progress callback
-   * @returns The final render progress with outputFile URL
+   * Generate video using production-ready Lambda implementation
    */
-  private async waitForRenderCompletion(
+  async generateVideo(
+    request: VideoGenerationRequest,
+    videoId: string,
+    onProgress?: LambdaProgressCallback
+  ): Promise<LambdaVideoResult> {
+    const startTime = Date.now();
+    let totalCost = 0;
+
+    console.log(`[Lambda] Starting production video generation for ${videoId}`);
+
+    try {
+      // Step 1: Validate and prepare
+      onProgress?.({
+        phase: 'preparing',
+        progress: 5,
+        message: 'Validating request and preparing Lambda environment...',
+        cost: 0
+      });
+
+      const compositionId = this.getCompositionId(request.type);
+      const serveUrl = await this.getServeUrl();
+
+      // Step 2: Start Lambda render with optimal settings
+      onProgress?.({
+        phase: 'preparing',
+        progress: 15,
+        message: 'Starting Lambda render with optimized settings...',
+        cost: 0
+      });
+
+      const renderResult = await this.renderWithRetry(
+        compositionId,
+        serveUrl,
+        request,
+        this.config.maxRetries
+      );
+
+      console.log(`[Lambda] Render started: ${renderResult.renderId}`);
+
+      // Track the render
+      this.activeRenders.set(videoId, {
+        renderId: renderResult.renderId,
+        bucketName: renderResult.bucketName,
+        startTime,
+        cancelled: false
+      });
+
+      // Step 3: Monitor progress with intelligent polling
+      const result = await this.monitorRenderProgress(
+        renderResult.renderId,
+        renderResult.bucketName,
+        videoId,
+        onProgress
+      );
+
+      // Step 4: Calculate costs and finalize
+      const renderTime = (Date.now() - startTime) / 1000;
+      totalCost = this.calculateCost(renderTime, this.config.memory);
+
+      onProgress?.({
+        phase: 'completed',
+        progress: 100,
+        message: '🎉 Video generated successfully on Lambda!',
+        renderId: renderResult.renderId,
+        cost: totalCost
+      });
+
+      console.log(`[Lambda] Video generation completed:`, {
+        videoId,
+        renderId: renderResult.renderId,
+        renderTime: `${renderTime}s`,
+        cost: `$${totalCost.toFixed(4)}`
+      });
+
+      // Clean up tracking
+      this.activeRenders.delete(videoId);
+
+      return {
+        success: true,
+        videoUrl: result.outputFile,
+        renderId: renderResult.renderId,
+        sizeInBytes: result.outputSizeInBytes || 0,
+        renderTime,
+        cost: totalCost
+      };
+
+    } catch (error) {
+      const renderTime = (Date.now() - startTime) / 1000;
+      totalCost = this.calculateCost(renderTime, this.config.memory);
+      
+      console.error(`[Lambda] Video generation failed for ${videoId}:`, error);
+
+      // Clean up on error
+      this.activeRenders.delete(videoId);
+
+      onProgress?.({
+        phase: 'failed',
+        progress: 0,
+        message: `Lambda render failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        cost: totalCost
+      });
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown Lambda error',
+        renderTime,
+        cost: totalCost
+      };
+    }
+  }
+
+  /**
+   * Render with automatic retry logic
+   */
+  private async renderWithRetry(
+    compositionId: string,
+    serveUrl: string,
+    request: VideoGenerationRequest,
+    maxRetries: number
+  ): Promise<{ renderId: string; bucketName: string }> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`[Lambda] Render attempt ${attempt}/${maxRetries}`);
+
+        const result = await renderMediaOnLambda({
+          region: this.config.region,
+          functionName: this.config.functionName,
+          composition: compositionId,
+          serveUrl,
+          inputProps: {
+            config: request.input.config || {},
+            userId: request.userId
+          },
+          codec: 'h264',
+          crf: request.settings?.quality || 18, // High quality
+          downloadBehavior: {
+            type: 'play-in-browser'
+          },
+          maxRetries: 1, // Let our wrapper handle retries
+          timeoutInMilliseconds: this.config.timeout,
+          logLevel: 'info',
+          // Optimized for performance and cost
+          concurrencyPerLambda: 2, // Match Lambda CPU cores
+          framesPerLambda: 50 // Balanced for progress updates
+        });
+
+        return {
+          renderId: result.renderId,
+          bucketName: result.bucketName
+        };
+
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('Unknown render error');
+        
+        if (attempt < maxRetries) {
+          const backoffTime = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+          console.warn(`[Lambda] Render attempt ${attempt} failed, retrying in ${backoffTime}ms:`, lastError.message);
+          await new Promise(resolve => setTimeout(resolve, backoffTime));
+        }
+      }
+    }
+
+    throw lastError || new Error('All render attempts failed');
+  }
+
+  /**
+   * Intelligent progress monitoring with adaptive polling
+   */
+  private async monitorRenderProgress(
     renderId: string,
     bucketName: string,
+    videoId: string,
     onProgress?: LambdaProgressCallback
   ): Promise<any> {
-    const startTime = Date.now();
+    let pollInterval = 2000; // Start with 2 seconds
+    let consecutiveNoProgress = 0;
     let lastProgress = 0;
-    let stuckCounter = 0;
-    let lastProgressValue = -1;
-    
-    console.log(`[LambdaVideoService] Starting polling for render completion: ${renderId}`);
-    
-    while (Date.now() - startTime < this.MAX_WAIT_TIME) {
+    const maxWaitTime = this.config.timeout + 30000; // Add buffer
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < maxWaitTime) {
+      // Check for cancellation
+      const renderInfo = this.activeRenders.get(videoId);
+      if (renderInfo?.cancelled) {
+        throw new Error('Render cancelled by user');
+      }
+
       try {
         const progress = await getRenderProgress({
           renderId,
           bucketName,
-          functionName: this.functionName,
-          region: this.region
+          region: this.config.region,
+          functionName: this.config.functionName
         });
 
         const currentProgress = Math.round((progress.overallProgress || 0) * 100);
-        
-        // Update progress if it changed significantly
-        if (onProgress && Math.abs(currentProgress - lastProgress) >= 5) {
-          onProgress({
+        const renderTime = (Date.now() - startTime) / 1000;
+        const estimatedCost = this.calculateCost(renderTime, this.config.memory);
+
+        // Adaptive progress reporting
+        if (currentProgress > lastProgress) {
+          onProgress?.({
             phase: 'rendering',
-            progress: currentProgress,
-            message: `Lambda render progress: ${currentProgress}%`,
-            renderId
+            progress: Math.min(currentProgress, 95), // Cap at 95% until complete
+            message: `Rendering video on Lambda... ${progress.framesRendered || 0} frames processed`,
+            renderId,
+            estimatedTimeRemaining: this.estimateTimeRemaining(currentProgress, renderTime),
+            cost: estimatedCost
           });
+          
           lastProgress = currentProgress;
-        }
-
-        // Check if progress is stuck
-        if (currentProgress === lastProgressValue) {
-          stuckCounter++;
+          consecutiveNoProgress = 0;
+          pollInterval = 2000; // Reset to fast polling on progress
         } else {
-          stuckCounter = 0;
-          lastProgressValue = currentProgress;
+          consecutiveNoProgress++;
+          // Slow down polling if no progress
+          if (consecutiveNoProgress > 5) {
+            pollInterval = Math.min(pollInterval * 1.2, 10000);
+          }
         }
 
-        console.log(`[LambdaVideoService] Render progress: ${currentProgress}% (done: ${progress.done}, errors: ${progress.errors?.length || 0}, stuck: ${stuckCounter})`);
-        console.log(`[LambdaVideoService] Progress details: frames rendered: ${progress.framesRendered}, lambdas invoked: ${progress.lambdasInvoked}`);
-
-        // If stuck for too long, log detailed information and consider it an error
-        if (stuckCounter > 10) { // 20+ seconds at same progress
-          console.error(`[LambdaVideoService] Render appears stuck at ${currentProgress}% for ${stuckCounter * this.POLLING_INTERVAL / 1000} seconds`);
-          console.error(`[LambdaVideoService] Detailed progress:`, JSON.stringify(progress, null, 2));
-          throw new Error(`Render stuck at ${currentProgress}% - no progress for ${stuckCounter * this.POLLING_INTERVAL / 1000} seconds`);
-        }
-
-        // Check if render is complete
+        // Check for completion
         if (progress.done && progress.outputFile) {
-          console.log(`[LambdaVideoService] Render completed! Output file: ${progress.outputFile}`);
+          console.log(`[Lambda] Render completed: ${progress.outputFile}`);
           return progress;
         }
 
-        // Check for fatal errors
+        // Check for errors
         if (progress.fatalErrorEncountered || progress.errors?.length > 0) {
-          console.error('[LambdaVideoService] Render errors detected:', progress.errors);
-          console.error('[LambdaVideoService] Full progress object:', JSON.stringify(progress, null, 2));
           const errorDetails = progress.errors?.map(err => 
-            typeof err === 'object' ? JSON.stringify(err, null, 2) : String(err)
-          ).join(', ') || 'Unknown fatal error';
+            typeof err === 'object' ? JSON.stringify(err) : String(err)
+          ).join(', ') || 'Fatal error encountered';
           throw new Error(`Lambda render failed: ${errorDetails}`);
         }
 
+        // Check if stuck (no progress for too long)
+        if (consecutiveNoProgress > 30) { // 30 polls without progress
+          throw new Error(`Render appears stuck at ${currentProgress}% - no progress for ${Math.round(consecutiveNoProgress * pollInterval / 1000)} seconds`);
+        }
+
+        console.log(`[Lambda] Progress: ${currentProgress}% (${progress.framesRendered || 0} frames rendered)`);
+
         // Wait before next poll
-        await new Promise(resolve => setTimeout(resolve, this.POLLING_INTERVAL));
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
 
       } catch (error) {
-        console.error(`[LambdaVideoService] Error polling render progress:`, error);
-        
-        // If it's a progress query error, wait and retry
-        if (Date.now() - startTime < this.MAX_WAIT_TIME - 10000) { // Don't retry in last 10 seconds
-          await new Promise(resolve => setTimeout(resolve, this.POLLING_INTERVAL));
-          continue;
-        } else {
-          throw error;
+        if (error instanceof Error && error.message.includes('cancelled')) {
+          throw error; // Re-throw cancellation
         }
+        
+        console.warn(`[Lambda] Progress check failed:`, error);
+        // Continue polling on transient errors
+        await new Promise(resolve => setTimeout(resolve, 5000));
       }
     }
 
-    // Timeout reached
-    throw new Error(`Lambda render timeout after ${this.MAX_WAIT_TIME / 1000} seconds. Render ID: ${renderId}`);
+    throw new Error(`Lambda render timeout after ${Math.round(maxWaitTime / 1000)} seconds`);
   }
 
-  async generateVideo(
-    request: VideoGenerationRequest,
-    onProgress?: LambdaProgressCallback
-  ): Promise<LambdaVideoResult> {
-    console.log('[LambdaVideoService] Starting Lambda video generation:', {
-      type: request.type,
-      functionName: this.functionName,
-      siteUrl: this.siteUrl
-    });
-
-    if (!this.functionName || !this.siteUrl) {
+  /**
+   * Cancel active render
+   */
+  async cancelRender(videoId: string): Promise<{ success: boolean; message: string }> {
+    const renderInfo = this.activeRenders.get(videoId);
+    
+    if (!renderInfo) {
       return {
         success: false,
-        error: 'Lambda configuration missing. Check LAMBDA_FUNCTION_NAME and LAMBDA_SITE_URL environment variables.'
+        message: 'No active render found for this video ID'
       };
     }
 
-    const startTime = Date.now();
-    const compositionId = this.getCompositionId(request.type);
-    let progressInterval: NodeJS.Timeout;
-
     try {
-      if (onProgress) {
-        onProgress({
-          phase: 'preparing',
-          progress: 10,
-          message: 'Preparing Lambda render...'
-        });
-      }
+      // Mark as cancelled locally
+      renderInfo.cancelled = true;
 
-      // Simulate progress updates during Lambda processing
-      progressInterval = setInterval(() => {
-        if (onProgress) {
-          const currentProgress = Math.min(90, Math.random() * 20 + 30); // 30-50% range
-          onProgress({
-            phase: 'rendering',
-            progress: currentProgress,
-            message: 'Processing video on AWS Lambda...'
-          });
-        }
-      }, 2000); // Update every 2 seconds
-
-      console.log('[LambdaVideoService] Calling renderMediaOnLambda with:', {
-        region: this.region,
-        functionName: this.functionName,
-        serveUrl: this.siteUrl,
-        composition: compositionId,
-        inputProps: { config: request.input.config }
+      // Attempt to delete the Lambda render
+      await deleteRender({
+        bucketName: renderInfo.bucketName,
+        renderId: renderInfo.renderId,
+        region: this.config.region
       });
 
-      const result = await renderMediaOnLambda({
-        region: this.region,
-        functionName: this.functionName,
-        composition: compositionId,
-        serveUrl: this.siteUrl,
-        inputProps: { config: request.input.config },
-        codec: 'h264',
-        imageFormat: 'jpeg',
-        crf: request.settings?.quality || 23,
-        timeoutInMilliseconds: 300000, // 5 minutes
-        maxRetries: 3,
-        privacy: 'public',
-        deleteAfter: '1-day',
-        // Optimize for large videos to prevent timeouts
-        concurrencyPerLambda: 2, // Match available CPU cores (2)
-        framesPerLambda: 50 // Reduce frames per Lambda to prevent timeouts on large videos
-      });
-
-      const renderTime = (Date.now() - startTime) / 1000;
-      
-      // Clear progress interval
-      clearInterval(progressInterval);
-
-      if (onProgress) {
-        onProgress({
-          phase: 'completed',
-          progress: 100,
-          message: 'Video generated successfully!',
-          renderId: result.renderId
-        });
-      }
-
-      console.log('[LambdaVideoService] Lambda render initiated:', {
-        renderId: result.renderId,
-        bucketName: (result as any).bucketName,
-        renderTime: `${renderTime}s`
-      });
-
-      // Extract basic info from initial result
-      const bucketName = (result as any).bucketName;
-      const renderId = result.renderId;
-      
-      if (!bucketName || !renderId) {
-        throw new Error('Missing bucketName or renderId from Lambda render result');
-      }
-
-      // Now wait for the render to actually complete
-      console.log('[LambdaVideoService] Waiting for render completion...');
-      const finalProgress = await this.waitForRenderCompletion(renderId, bucketName, onProgress);
-      
-      // Get the final video URL from the completed render
-      const videoUrl = finalProgress.outputFile;
-      
-      if (!videoUrl) {
-        throw new Error('No outputFile URL available from completed render');
-      }
-      
-      console.log('[LambdaVideoService] Render completed successfully:', {
-        renderId,
-        videoUrl,
-        sizeInBytes: finalProgress.outputSizeInBytes,
-        totalRenderTime: `${(Date.now() - startTime) / 1000}s`
-      });
+      this.activeRenders.delete(videoId);
       
       return {
         success: true,
-        videoUrl,
-        renderId: result.renderId,
-        sizeInBytes: finalProgress.outputSizeInBytes || 0,
-        renderTime: (Date.now() - startTime) / 1000
+        message: 'Render cancelled successfully'
       };
 
     } catch (error) {
-      const renderTime = (Date.now() - startTime) / 1000;
-      const errorMessage = error instanceof Error ? error.message : 'Unknown Lambda error';
+      console.error(`[Lambda] Failed to cancel render:`, error);
       
-      // Clear progress interval on error
-      clearInterval(progressInterval);
+      // Still mark as cancelled locally
+      this.activeRenders.delete(videoId);
       
-      console.error('[LambdaVideoService] Lambda render failed:', {
-        error: errorMessage,
-        renderTime: `${renderTime}s`,
-        functionName: this.functionName,
-        region: this.region
-      });
-
-      if (onProgress) {
-        onProgress({
-          phase: 'failed',
-          progress: 0,
-          message: `Lambda render failed: ${errorMessage}`
-        });
-      }
-
       return {
         success: false,
-        error: errorMessage,
-        renderTime
+        message: error instanceof Error ? error.message : 'Failed to cancel render'
       };
     }
   }
 
-  private getCompositionId(type: string): string {
-    switch (type) {
-      case 'story':
-        return 'text-story';
-      case 'reddit':
-        return 'reddit-video';
-      case 'quiz':
-        return 'quiz-video';
-      case 'educational':
-        return 'educational-video';
-      default:
-        return 'text-story';
-    }
+  /**
+   * Get active renders
+   */
+  getActiveRenders(): string[] {
+    return Array.from(this.activeRenders.keys());
   }
 
-  async getStatus(): Promise<{ available: boolean; message: string }> {
-    if (!this.functionName || !this.siteUrl) {
-      return {
-        available: false,
-        message: 'Lambda configuration missing'
-      };
-    }
-
+  /**
+   * Get service status and health
+   */
+  async getStatus(): Promise<{
+    available: boolean;
+    message: string;
+    activeRenders: number;
+    config: Partial<LambdaConfig>;
+  }> {
     try {
-      // Simple test - we could add more sophisticated health checks
       return {
         available: true,
-        message: `Lambda function ${this.functionName} configured`
+        message: `Lambda service ready - Function: ${this.config.functionName}`,
+        activeRenders: this.activeRenders.size,
+        config: {
+          functionName: this.config.functionName,
+          region: this.config.region,
+          memory: this.config.memory,
+          timeout: this.config.timeout
+        }
       };
     } catch (error) {
       return {
         available: false,
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Service unavailable',
+        activeRenders: 0,
+        config: {}
       };
     }
   }
 
-  getFunctionName(): string {
-    return this.functionName;
+  // Helper methods
+  private getCompositionId(type: string): string {
+    const compositionMap: { [key: string]: string } = {
+      story: 'text-story',
+      'text-story': 'text-story',
+      reddit: 'reddit-video',
+      quiz: 'quiz-video',
+      educational: 'educational-video'
+    };
+    return compositionMap[type] || 'text-story';
   }
 
-  getSiteUrl(): string {
-    return this.siteUrl;
+  private async getServeUrl(): Promise<string> {
+    // Get from environment or use deployed site
+    const siteUrl = process.env.LAMBDA_SITE_URL;
+    if (!siteUrl) {
+      throw new Error('LAMBDA_SITE_URL not configured');
+    }
+    
+    // Ensure URL doesn't end with index.html
+    return siteUrl.replace(/\/index\.html$/, '/');
   }
 
-  getRegion(): string {
-    return this.region;
+  private calculateCost(renderTimeSeconds: number, memoryMB: number): number {
+    // AWS Lambda pricing (approximate)
+    const requestCost = 0.0000002; // $0.20 per 1M requests
+    const durationCost = (renderTimeSeconds * (memoryMB / 1024) * 0.0000166667); // $0.0000166667 per GB-second
+    return requestCost + durationCost;
+  }
+
+  private estimateTimeRemaining(currentProgress: number, elapsedTime: number): number {
+    if (currentProgress <= 0) return 60; // Default estimate
+    const progressRate = currentProgress / elapsedTime;
+    const remainingProgress = 100 - currentProgress;
+    return Math.round(remainingProgress / progressRate);
   }
 }
 
 // Singleton instance
-export const lambdaVideoService = new LambdaVideoService();
-export default LambdaVideoService;
+export const productionLambdaVideoService = new ProductionLambdaVideoService();
+export default ProductionLambdaVideoService;

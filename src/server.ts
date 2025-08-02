@@ -21,6 +21,8 @@ import voiceRoutes from './routes/voices';
 import assetsRoutes from './routes/assets';
 import videoRoutes from './routes/video';
 import cacheRoutes from './routes/cache';
+import adminRoutes from './routes/admin';
+import lambdaRoutes from './routes/lambda';
 
 // Middleware
 import { requestLogger } from './middleware/requestLogger';
@@ -139,6 +141,8 @@ export async function createServer(): Promise<{ app: express.Application; httpSe
   app.use('/api/assets', assetsRoutes);
   app.use('/api/video', videoRoutes);
   app.use('/api/cache', cacheRoutes);
+  app.use('/api/admin', adminRoutes);
+  app.use('/api/lambda', lambdaRoutes);
 
   console.log('✅ API routes initialized (including cache management)');
 
@@ -155,7 +159,13 @@ export async function createServer(): Promise<{ app: express.Application; httpSe
         video: '/api/video/generate',
         status: '/api/video/status/:videoId',
         renders: '/api/video/renders',
-        cache: '/api/cache/status'
+        cache: '/api/cache/status',
+        lambda: {
+          render: '/api/lambda/render',
+          progress: '/api/lambda/progress',
+          status: '/api/lambda/status',
+          test: '/api/lambda/test'
+        }
       }
     });
   });
