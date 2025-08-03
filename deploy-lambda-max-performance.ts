@@ -70,7 +70,7 @@ class MaxPerformanceLambdaDeployment {
     console.log(`   Memory: 3008MB (MAXIMUM)`);
     console.log(`   Timeout: 900s (15min MAXIMUM)`);
     console.log(`   Disk: 10GB (MAXIMUM)`);
-    console.log(`   Concurrency: 8 per Lambda (OPTIMIZED)`);
+    console.log(`   Concurrency: 2 per Lambda (CPU OPTIMIZED)`);
 
     return result;
   }
@@ -122,8 +122,8 @@ class MaxPerformanceLambdaDeployment {
       LAMBDA_MEMORY: '3008',
       LAMBDA_TIMEOUT: '900',
       LAMBDA_DISK_SIZE: '10240',
-      LAMBDA_CONCURRENCY_PER_LAMBDA: '8',
-      LAMBDA_FRAMES_PER_LAMBDA: '20',
+      LAMBDA_CONCURRENCY_PER_LAMBDA: '1',
+      LAMBDA_FRAMES_PER_LAMBDA: '15',
       LAMBDA_MAX_CONCURRENCY: '20',
       LAMBDA_MAX_RETRIES: '3'
     };
@@ -173,7 +173,7 @@ class MaxPerformanceLambdaDeployment {
     console.log('   Memory: 3008MB (100% of Lambda maximum)');
     console.log('   Timeout: 900s (15 minutes maximum)');
     console.log('   Disk: 10GB (100% of Lambda maximum)');
-    console.log('   Concurrency: 8 per Lambda (optimized)');
+    console.log('   Concurrency: 2 per Lambda (CPU optimized)');
     console.log('   Frame chunks: 20 (balanced for progress)');
     
     console.log('\n⚡ PERFORMANCE OPTIMIZATIONS:');
