@@ -62,22 +62,19 @@ router.get('/videos/user/:userId', async (req, res) => {
       });
     }
 
-    // Transform storage objects to video metadata format with signed URLs
-    const storageProvider = getStorageProvider();
-    const videos = await Promise.all(
-      result.files
-        .filter(obj => obj.key.match(/\.(mp4|mov|avi|webm)$/i))
-        .map(async obj => ({
-          id: obj.key.split('/').pop()?.replace(/\.[^/.]+$/, '') || 'unknown',
-          name: obj.key.split('/').pop()?.replace(/\.[^/.]+$/, '') || 'Unknown',
-          category: 'custom',
-          videoUrl: await storageProvider.getSignedUrl(obj.key, 3600),
-          size: obj.size,
-          duration: null,
-          uploadedAt: obj.lastModified,
-          isPublic: false
-        }))
-    );
+    // Transform storage objects to video metadata format with public URLs
+    const videos = result.files
+      .filter(obj => obj.key.match(/\.(mp4|mov|avi|webm)$/i))
+      .map(obj => ({
+        id: obj.key.split('/').pop()?.replace(/\.[^/.]+$/, '') || 'unknown',
+        name: obj.key.split('/').pop()?.replace(/\.[^/.]+$/, '') || 'Unknown',
+        category: 'custom',
+        videoUrl: getPublicUrl(obj.key),
+        size: obj.size,
+        duration: null,
+        uploadedAt: obj.lastModified,
+        isPublic: true // Now public since buckets are public
+      }));
 
     res.json({
       success: true,
@@ -160,7 +157,7 @@ router.get('/audio/user/:userId', async (req, res) => {
         size: obj.size,
         duration: null,
         uploadedAt: obj.lastModified,
-        isPublic: false
+        isPublic: true
       }));
 
     res.json({
@@ -193,27 +190,24 @@ router.get('/list/:userId', async (req, res) => {
       });
     }
 
-    // Filter and transform objects based on type with signed URLs
-    const storageProvider = getStorageProvider();
-    let assets = await Promise.all(
-      result.files.map(async obj => {
-        const isVideo = obj.key.match(/\.(mp4|mov|avi|webm)$/i);
-        const isAudio = obj.key.match(/\.(mp3|wav|m4a|aac|ogg)$/i);
-        const isImage = obj.key.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+    // Filter and transform objects based on type with public URLs
+    let assets = result.files.map(obj => {
+      const isVideo = obj.key.match(/\.(mp4|mov|avi|webm)$/i);
+      const isAudio = obj.key.match(/\.(mp3|wav|m4a|aac|ogg)$/i);
+      const isImage = obj.key.match(/\.(jpg|jpeg|png|gif|webp)$/i);
 
-        if (!isVideo && !isAudio && !isImage) return null;
+      if (!isVideo && !isAudio && !isImage) return null;
 
-        return {
-          id: obj.key.split('/').pop()?.replace(/\.[^/.]+$/, '') || 'unknown',
-          name: obj.key.split('/').pop()?.replace(/\.[^/.]+$/, '') || 'Unknown',
-          type: isVideo ? 'video' : isAudio ? 'audio' : 'image',
-          url: await storageProvider.getSignedUrl(obj.key, 3600),
-          size: obj.size,
-          uploadedAt: obj.lastModified,
-          isPublic: false
-        };
-      })
-    );
+      return {
+        id: obj.key.split('/').pop()?.replace(/\.[^/.]+$/, '') || 'unknown',
+        name: obj.key.split('/').pop()?.replace(/\.[^/.]+$/, '') || 'Unknown',
+        type: isVideo ? 'video' : isAudio ? 'audio' : 'image',
+        url: getPublicUrl(obj.key),
+        size: obj.size,
+        uploadedAt: obj.lastModified,
+        isPublic: true // Now public since buckets are public
+      };
+    });
     assets = assets.filter(Boolean);
 
     // Filter by type if specified

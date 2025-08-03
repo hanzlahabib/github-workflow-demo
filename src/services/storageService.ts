@@ -54,8 +54,9 @@ export const deleteFile = async (key: string): Promise<StorageDeleteResult> => {
 };
 
 export const getSignedUrl = async (key: string, expiresIn?: number): Promise<string> => {
+  // Return public URL since buckets are now public (no signing needed)
   const provider = getStorageProvider();
-  return provider.getSignedUrl(key, expiresIn);
+  return provider.getPublicUrl(key);
 };
 
 export const getPublicUrl = (key: string): string => {

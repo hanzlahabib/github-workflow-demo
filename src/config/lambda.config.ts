@@ -32,27 +32,28 @@ export interface LambdaConfig {
 }
 
 /**
- * Default Lambda configuration optimized for video rendering
+ * Default Lambda configuration - using actual deployed function
  */
 const DEFAULT_CONFIG: LambdaConfig = {
-  functionName: 'reelspeed-lambda-renderer',
+  functionName: 'remotion-render-4-0-331-mem3008mb-disk10240mb-900sec',
   region: 'us-east-1',
-  bucketName: 'remotionlambda-useast1-reelspeed',
+  bucketName: 'remotionlambda-useast1-oelksfi1c7',
+  siteUrl: 'https://remotionlambda-useast1-oelksfi1c7.s3.us-east-1.amazonaws.com/sites/qsqxdgnwtz/index.html',
   
-  // Optimized for video rendering performance
+  // MAXIMUM PERFORMANCE SPECS
   memory: 3008, // Maximum Lambda memory
-  timeout: 600, // 10 minutes
-  diskSize: 4096, // 4GB disk space
+  timeout: 840, // 14 minutes (safe margin for 15-min limit)
+  diskSize: 10240, // 10GB disk space maximum
   
-  // Rendering optimization
-  concurrencyPerLambda: 4, // Utilize full CPU
-  framesPerLambda: 30, // Good balance for progress updates
+  // OPTIMIZED RENDERING SETTINGS - Tuned for 88% encoding issue
+  concurrencyPerLambda: 1, // Single thread to avoid memory pressure during encoding
+  framesPerLambda: 15, // Smaller chunks to prevent memory buildup during final encoding
   codec: 'h264',
   crf: 18, // High quality
   
-  // Reliability settings
+  // RELIABILITY & COST OPTIMIZATION
   maxRetries: 3,
-  maxConcurrency: 10,
+  maxConcurrency: 20, // Maximum throughput
   enableInsights: false // Reduce costs
 };
 
@@ -60,65 +61,33 @@ const DEFAULT_CONFIG: LambdaConfig = {
  * Environment-specific configuration overrides
  */
 const CONFIG_OVERRIDES = {
-  development: {
-    functionName: 'reelspeed-lambda-renderer-dev',
-    bucketName: 'remotionlambda-useast1-reelspeed-dev',
-    timeout: 300, // 5 minutes for dev
-    enableInsights: true // Enable for debugging
-  },
-  
+  // No overrides needed - defaults are correct for development
   production: {
     functionName: 'reelspeed-lambda-renderer-prod',
-    bucketName: 'remotionlambda-useast1-reelspeed-prod',
-    timeout: 600, // 10 minutes for prod
-    enableInsights: false // Reduce costs
+    bucketName: 'remotionlambda-useast1-reelspeed-prod'
   },
   
   test: {
     functionName: 'reelspeed-lambda-renderer-test',
     bucketName: 'remotionlambda-useast1-reelspeed-test',
-    timeout: 120, // 2 minutes for tests
-    maxConcurrency: 2
+    timeout: 300, // 5 minutes for tests
+    maxConcurrency: 5,
+    memory: 2048 // Reduce memory for tests to save costs
   }
 };
 
 /**
- * Load Lambda configuration based on environment
+ * Simple Lambda configuration loading
  */
 export function getLambdaConfig(): LambdaConfig {
   const env = process.env.NODE_ENV || 'development';
   const overrides = CONFIG_OVERRIDES[env as keyof typeof CONFIG_OVERRIDES] || {};
   
-  // Merge default config with environment overrides
+  // Just merge defaults with environment overrides - simple and clean
   const config: LambdaConfig = {
     ...DEFAULT_CONFIG,
     ...overrides
   };
-  
-  // Apply environment variable overrides
-  if (process.env.LAMBDA_FUNCTION_NAME) {
-    config.functionName = process.env.LAMBDA_FUNCTION_NAME;
-  }
-  
-  if (process.env.LAMBDA_BUCKET_NAME) {
-    config.bucketName = process.env.LAMBDA_BUCKET_NAME;
-  }
-  
-  if (process.env.LAMBDA_SITE_URL) {
-    config.siteUrl = process.env.LAMBDA_SITE_URL;
-  }
-  
-  if (process.env.LAMBDA_REGION) {
-    config.region = process.env.LAMBDA_REGION as AwsRegion;
-  }
-  
-  if (process.env.LAMBDA_MEMORY) {
-    config.memory = parseInt(process.env.LAMBDA_MEMORY) as 1024 | 2048 | 3008;
-  }
-  
-  if (process.env.LAMBDA_TIMEOUT) {
-    config.timeout = parseInt(process.env.LAMBDA_TIMEOUT);
-  }
   
   return config;
 }
@@ -172,7 +141,7 @@ export function generateEnvVars(config: LambdaConfig): Record<string, string> {
 }
 
 /**
- * Export singleton instance
+ * Export dynamic config getter - no caching
  */
 export const lambdaConfig = getLambdaConfig();
 

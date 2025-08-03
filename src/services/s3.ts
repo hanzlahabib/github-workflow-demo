@@ -1156,10 +1156,8 @@ class S3Service {
       const command = new PutObjectCommand(uploadParams);
       const result = await this.s3.send(command);
 
-      // Generate appropriate URL based on ACL using the correct bucket
-      const url = config.acl === 'public-read'
-        ? this.getPublicUrlForBucket(key, config.bucket)
-        : await this.getSignedUrl(key, 'getObject', { expires: config.signedUrlExpiry });
+      // Generate public URL since buckets are now public
+      const url = this.getPublicUrlForBucket(key, config.bucket);
 
       console.log(`[S3Audio] ${type} audio uploaded successfully: ${key}`);
 
@@ -1180,11 +1178,11 @@ class S3Service {
   }
 
   /**
-   * Get signed URL for audio with appropriate expiry based on environment
+   * Get public URL for audio (no signing needed since buckets are public)
    */
   async getAudioSignedUrl(key: string, operation: 'getObject' | 'putObject' = 'getObject'): Promise<string> {
     const config = getAudioStorageConfig();
-    return this.getSignedUrl(key, operation, { expires: config.signedUrlExpiry });
+    return this.getPublicUrlForBucket(key, config.bucket);
   }
 
   /**
