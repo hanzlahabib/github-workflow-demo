@@ -1,13 +1,13 @@
 {
   "LAMBDA_FUNCTION_NAME": "remotion-render-4-0-331-mem3008mb-disk10240mb-900sec",
-  "LAMBDA_SITE_URL": "https://remotionlambda-useast1-oelksfi1c7.s3.us-east-1.amazonaws.com/sites/remotion-render-4-0-331-mem3008mb-disk10240mb-900sec-site-1754134744300/index.html",
+  "LAMBDA_SITE_URL": "https://remotionlambda-useast1-oelksfi1c7.s3.us-east-1.amazonaws.com/sites/remotion-render-4-0-331-mem3008mb-disk10240mb-900sec-site-1754173058838/index.html",
   "LAMBDA_BUCKET_NAME": "remotionlambda-useast1-oelksfi1c7",
   "LAMBDA_REGION": "us-east-1",
   "LAMBDA_MEMORY": "3008",
   "LAMBDA_TIMEOUT": "900",
   "LAMBDA_DISK_SIZE": "10240",
-  "LAMBDA_CONCURRENCY_PER_LAMBDA": "8",
-  "LAMBDA_FRAMES_PER_LAMBDA": "20",
+  "LAMBDA_CONCURRENCY_PER_LAMBDA": "1",
+  "LAMBDA_FRAMES_PER_LAMBDA": "15",
   "LAMBDA_MAX_CONCURRENCY": "20",
   "LAMBDA_MAX_RETRIES": "3"
 }

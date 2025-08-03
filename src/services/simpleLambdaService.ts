@@ -216,7 +216,7 @@ export class SimpleLambdaService {
       // Return progress update
       return {
         type: 'progress',
-        progress: Math.round((progress.overallProgress || 0) * 100) / 100
+        progress: Math.round((progress.overallProgress || 0) * 100) // Convert decimal to percentage
       };
 
     } catch (error) {

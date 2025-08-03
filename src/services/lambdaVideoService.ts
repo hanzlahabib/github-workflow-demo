@@ -240,9 +240,9 @@ class ProductionLambdaVideoService {
           maxRetries: 1, // Let our wrapper handle retries
           timeoutInMilliseconds: this.config.timeout,
           logLevel: 'info',
-          // Optimized for performance and cost
-          concurrencyPerLambda: 2, // Match Lambda CPU cores
-          framesPerLambda: 50 // Balanced for progress updates
+          // Optimized for 88% stuck issue - reduce memory pressure during encoding
+          concurrencyPerLambda: 1, // Reduce CPU contention during encoding
+          framesPerLambda: 30 // Smaller chunks to avoid memory pressure
         });
 
         return {
@@ -335,7 +335,9 @@ class ProductionLambdaVideoService {
         }
 
         // Check if stuck (no progress for too long)
-        if (consecutiveNoProgress > 30) { // 30 polls without progress
+        // Special handling for 85%+ where encoding happens - allow more time
+        const maxStuckPolls = currentProgress >= 85 ? 60 : 30; // 2 minutes vs 1 minute
+        if (consecutiveNoProgress > maxStuckPolls) {
           throw new Error(`Render appears stuck at ${currentProgress}% - no progress for ${Math.round(consecutiveNoProgress * pollInterval / 1000)} seconds`);
         }
 

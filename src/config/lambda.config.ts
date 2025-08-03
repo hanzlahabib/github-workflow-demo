@@ -38,16 +38,16 @@ const DEFAULT_CONFIG: LambdaConfig = {
   functionName: 'remotion-render-4-0-331-mem3008mb-disk10240mb-900sec',
   region: 'us-east-1',
   bucketName: 'remotionlambda-useast1-oelksfi1c7',
-  siteUrl: 'https://remotionlambda-useast1-oelksfi1c7.s3.us-east-1.amazonaws.com/sites/remotion-render-4-0-331-mem3008mb-disk10240mb-900sec-site-1754134744300/index.html',
+  siteUrl: 'https://remotionlambda-useast1-oelksfi1c7.s3.us-east-1.amazonaws.com/sites/qsqxdgnwtz/index.html',
   
   // MAXIMUM PERFORMANCE SPECS
   memory: 3008, // Maximum Lambda memory
-  timeout: 900, // 15 minutes maximum
+  timeout: 840, // 14 minutes (safe margin for 15-min limit)
   diskSize: 10240, // 10GB disk space maximum
   
-  // OPTIMIZED RENDERING SETTINGS
-  concurrencyPerLambda: 2, // Match available CPU cores (2)
-  framesPerLambda: 20, // Optimized chunks for progress feedback
+  // OPTIMIZED RENDERING SETTINGS - Tuned for 88% encoding issue
+  concurrencyPerLambda: 1, // Single thread to avoid memory pressure during encoding
+  framesPerLambda: 15, // Smaller chunks to prevent memory buildup during final encoding
   codec: 'h264',
   crf: 18, // High quality
   
