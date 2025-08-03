@@ -16,10 +16,76 @@ import {
 } from '@remotion/lambda';
 import { lambdaConfig, type LambdaConfig } from '../config/lambda.config';
 
-// Simple interfaces matching Clippie's API
+// Copy of TextStoryConfig interface from video service to avoid import issues
+interface Message {
+  id: string;
+  text: string;
+  sender: 'left' | 'right';
+  delay: number;
+  avatar?: string;
+  voiceId?: string;
+  voiceName?: string;
+  audioUrl?: string;
+  audioDuration?: number;
+  audioKey?: string;
+  audioTimestamp?: number;
+  audioSettings?: {
+    stability?: number;
+    similarity?: number;
+    model?: string;
+  };
+}
+
+interface TextStoryConfig {
+  [key: string]: unknown; // Index signature for Remotion compatibility
+  title: string;
+  messages: Message[];
+  people: {
+    left: {
+      id: 'left';
+      name: string;
+      avatar: {
+        id: string;
+        name: string;
+        url: string;
+      };
+      voiceId?: string;
+      voiceName?: string;
+      isVoiceGenerated: boolean;
+    };
+    right: {
+      id: 'right';
+      name: string;
+      avatar: {
+        id: string;
+        name: string;
+        url: string;
+      };
+      voiceId?: string;
+      voiceName?: string;
+      isVoiceGenerated: boolean;
+    };
+  };
+  backgroundSettings: any;
+  chatOverlay: any;
+  uiTheme: string;
+  musicVolume: number;
+  videoVolume: number;
+  colorCustomization: any;
+  captions: any;
+  notificationSettings: any;
+  chatSimulationSettings: any;
+  visualEffectsSettings: any;
+  voiceAudioSettings: any;
+  animationSettings: any;
+  advancedSettings?: any;
+}
+
+// Proper interface matching video service expectations
 export interface RenderRequest {
   id: string;
   inputProps: {
+    config?: TextStoryConfig; // Proper config interface from video service
     videoUrl?: string;
     subtitles?: any[];
     BGAudioUrl?: string;
@@ -91,20 +157,20 @@ export class SimpleLambdaService {
         serveUrl: this.config.siteUrl,
         inputProps: request.inputProps,
         
-        // Rendering settings
+        // MAXIMUM PERFORMANCE RENDERING SETTINGS
         codec: this.config.codec,
         crf: this.config.crf,
-        concurrencyPerLambda: this.config.concurrencyPerLambda,
-        framesPerLambda: this.config.framesPerLambda,
+        concurrencyPerLambda: this.config.concurrencyPerLambda, // 8 (maximum)
+        framesPerLambda: this.config.framesPerLambda, // 20 (optimized chunks)
         
         // Output settings
         downloadBehavior: {
           type: 'play-in-browser'
         },
         
-        // Reliability
+        // EXTENDED TIMEOUT & RELIABILITY
         maxRetries: 1, // Let caller handle retries
-        timeoutInMilliseconds: this.config.timeout * 1000,
+        timeoutInMilliseconds: this.config.timeout * 1000, // 900s (15 minutes)
         logLevel: 'info'
       });
 
@@ -150,7 +216,7 @@ export class SimpleLambdaService {
       // Return progress update
       return {
         type: 'progress',
-        progress: Math.round((progress.overallProgress || 0) * 100) / 100
+        progress: Math.round((progress.overallProgress || 0) * 100) // Convert decimal to percentage
       };
 
     } catch (error) {

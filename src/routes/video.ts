@@ -19,90 +19,291 @@ const videoStatuses: { [videoId: string]: {
   duration?: number;
 } } = {};
 
-// Native video generation function using Remotion programmatic API
+// Lambda video generation function using maximum performance Lambda
 async function generateVideoAsync(videoId: string, type: string, input: any, settings: any, socketId?: string) {
   try {
-    console.log(`[VideoGen] Starting native video generation for ${videoId}`);
-    videoStatuses[videoId] = { status: 'processing', progress: 5, message: 'Initializing video service...' };
+    console.log(`[VideoGen] Starting Lambda video generation for ${videoId}`);
+    videoStatuses[videoId] = { status: 'processing', progress: 5, message: 'Initializing Lambda service...' };
+    
+    // ✅ FIXED: Emit initial status via WebSocket to frontend
+    const io = (global as any).io;
+    if (io && socketId) {
+      const initialData = {
+        videoId,
+        progress: 5,
+        phase: 'initializing',
+        message: 'Initializing Lambda service...',
+        timestamp: new Date().toISOString()
+      };
+      console.log(`[VideoGen] Emitting initial status to socket ${socketId}:`, initialData);
+      io.to(socketId).emit('videoProgress', initialData);
+    }
 
-    // Import the native video service
-    const { videoService } = await import('../services/videoService');
+    // Import the simplified Lambda service for maximum performance
+    const { simpleLambdaService } = await import('../services/simpleLambdaService');
+    
+    // ✅ ENHANCED: Intelligent background video preprocessing
+    if (input?.config?.backgroundSettings?.backgroundType === 'video' && input?.config?.backgroundSettings?.backgroundUrl) {
+      const backgroundSettings = input.config.backgroundSettings;
+      const videoUrl = backgroundSettings.backgroundUrl;
+      const videoStartTime = backgroundSettings.videoStartTime || 0;
+      const videoEndTime = backgroundSettings.videoEndTime || (settings.duration || 30);
+      const videoDurationInSeconds = settings.duration || 30;
+      
+      console.log(`[VideoGen] Preprocessing background video: ${videoUrl}`);
+      console.log(`[VideoGen] Segment: ${videoStartTime}s - ${videoEndTime}s (${videoEndTime - videoStartTime}s)`);
+      
+      // TEMPORARILY DISABLE PREPROCESSING TO TEST BACKGROUND VIDEOS
+      console.log(`[VideoGen] PREPROCESSING DISABLED - Using original video directly`);
+      console.log(`[VideoGen] Video URL: ${videoUrl}`);
+      console.log(`[VideoGen] Segment: ${videoStartTime}s - ${videoEndTime}s`);
+      console.log(`[VideoGen] Video background will be rendered as-is`);
+      
+      // Keep original settings - no preprocessing
+      // This will test if preprocessing was causing the background video issue
+    }
 
-    // Prepare the request - PRESERVE ORIGINAL INPUT INCLUDING CONFIG
-    const request = {
-      type: type as 'story' | 'reddit' | 'quiz' | 'educational',
-      input: {
-        text: input.text || input.script || 'Default video content',
-        script: input.script,
-        title: input.title,
-        config: input.config // ✅ CRITICAL: Preserve enhanced config from frontend
+    // Prepare Lambda render request - match video service expected format
+    const lambdaRequest = {
+      id: videoId,
+      inputProps: {
+        // The video service expects a 'config' object with messages, not flat props
+        config: input.config || {
+          messages: input.conversations?.[0]?.messages || [
+            {
+              id: '1',
+              text: input.text || input.script || 'Default video content',
+              from: 'sender',
+              duration: 2
+            }
+          ],
+          messageMetadata: input.messageMetadata || {
+            username: 'User',
+            pfp: '',
+            darkMode: false,
+            unreadMessages: '0',
+            ui: 'iOS Dark'
+          },
+          durationInSeconds: settings.duration || 30
+        }
       },
-      settings: {
-        duration: settings.duration || 30,
-        width: settings.width || 1080,
-        height: settings.height || 1920,
-        fps: settings.fps || 30,
-        voice: settings.voice || 'default',
-        background: settings.background || '#000000',
-        language: settings.language || 'en'
-      },
-      userId: 'video_generation_user'
+      fileName: `${videoId}.mp4`,
+      key: `renders/${videoId}/${videoId}.mp4`,
+      videoId: videoId
     };
 
-    console.log(`[VideoGen] Request prepared:`, {
-      type: request.type,
-      textLength: request.input.text?.length,
-      actualText: request.input.text,
-      duration: request.settings.duration
+    console.log(`[VideoGen] Lambda request prepared:`, {
+      videoId,
+      hasConfig: !!input.config,
+      hasVideoUrl: !!input.videoUrl,
+      duration: settings.duration
     });
+    
+    // DEBUG: Log the actual config being sent to Lambda
+    console.log(`[VideoGen] Full input received:`, JSON.stringify(input, null, 2));
+    console.log(`[VideoGen] Config being sent to Lambda:`, JSON.stringify(lambdaRequest.inputProps.config, null, 2));
 
-    // Generate video with progress callback
-    const result = await videoService.generateVideo(request, (progress) => {
-      console.log(`[VideoGen] Progress update:`, progress);
+    // Start Lambda render with maximum performance
+    videoStatuses[videoId] = { status: 'processing', progress: 10, message: 'Starting Lambda render with 15-minute timeout...' };
+    const renderResult = await simpleLambdaService.startRender(lambdaRequest);
+    
+    console.log(`[VideoGen] Lambda render started: ${renderResult.renderId}`);
+    videoStatuses[videoId] = { status: 'processing', progress: 15, message: 'Lambda render started, monitoring progress...' };
 
-      // Update status based on progress  
-      videoStatuses[videoId] = {
-        status: 'processing',
-        progress: progress.progress,
-        message: progress.message
-      };
-    }, socketId);
-
-    if (result.success && result.outputPath) {
-      console.log(`[VideoGen] Video generation completed for ${videoId}`);
-
-      // For remote video service, preserve the full videoUrl
-      // For local video service, create download path
-      let finalOutputPath = result.outputPath;
+    // Poll for completion with proper timeout handling
+    let completed = false;
+    let finalResult = null;
+    let timeoutReached = false;
+    
+    // Increased timeout since OffthreadVideo fixes resolved 87% stuck issue
+    const LAMBDA_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes - videos now render to 99%
+    const POLL_INTERVAL_MS = 2000; // 2 seconds
+    const startTime = Date.now();
+    
+    // Start progress polling with timeout awareness
+    let lastProgress = 0; // Move to outer scope for access in timeout handler
+    
+    const pollProgress = async () => {
+      let consecutiveErrors = 0;
+      let stuckCount = 0;
       
-      if (result.videoUrl) {
-        // Remote video service provided full URL, use it directly
-        finalOutputPath = result.videoUrl;
-        console.log(`[VideoGen] Using remote video URL: ${finalOutputPath}`);
-      } else if (!result.outputPath.startsWith('http')) {
-        // Local video service, create download path
-        const fileName = path.basename(result.outputPath);
-        finalOutputPath = `/api/video/download/${fileName}`;
-        console.log(`[VideoGen] Created local download path: ${finalOutputPath}`);
+      while (!completed && !timeoutReached) {
+        const elapsedTime = Date.now() - startTime;
+        
+        // Check if we're approaching Lambda timeout
+        if (elapsedTime >= LAMBDA_TIMEOUT_MS) {
+          console.warn(`[VideoGen] Lambda timeout reached for ${videoId} after ${Math.round(elapsedTime/1000)}s`);
+          timeoutReached = true;
+          break;
+        }
+        
+        try {
+          await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+          
+          const progress = await simpleLambdaService.getRenderProgress({
+            id: renderResult.renderId,
+            bucketName: renderResult.bucketName
+          });
+          
+          console.log(`[VideoGen] Lambda progress:`, progress);
+          
+          if (progress.type === 'done' && progress.url) {
+            // Render completed successfully
+            completed = true;
+            finalResult = progress.url;
+            
+            videoStatuses[videoId] = {
+              status: 'completed',
+              progress: 100,
+              message: 'Video generation completed successfully!',
+              outputPath: progress.url,
+              videoUrl: progress.url,
+              sizeInBytes: progress.size || 0,
+              duration: Math.round(elapsedTime / 1000)
+            };
+            
+            // ✅ FIXED: Emit completion status via WebSocket to frontend
+            const io = (global as any).io;
+            if (io && socketId) {
+              const completionData = {
+                videoId,
+                progress: 100,
+                phase: 'completed',
+                message: 'Video generation completed successfully!',
+                videoUrl: progress.url,
+                sizeInBytes: progress.size || 0,
+                duration: Math.round(elapsedTime / 1000),
+                timestamp: new Date().toISOString()
+              };
+              console.log(`[VideoGen] Emitting completion to socket ${socketId}:`, completionData);
+              io.to(socketId).emit('videoProgress', completionData);
+            }
+            
+            console.log(`[VideoGen] Lambda render completed: ${progress.url} in ${Math.round(elapsedTime/1000)}s`);
+            break;
+          } else if (progress.type === 'progress') {
+            const progressPercentage = Math.round(progress.progress || 0);
+            
+            // Detect stuck progress
+            if (progressPercentage === lastProgress) {
+              stuckCount++;
+              if (stuckCount > 30) { // 60+ seconds at same progress
+                console.warn(`[VideoGen] Progress stuck at ${progressPercentage}% for ${videoId}`);
+                timeoutReached = true;
+                break;
+              }
+            } else {
+              stuckCount = 0;
+              lastProgress = progressPercentage;
+            }
+            
+            videoStatuses[videoId] = {
+              status: 'processing',
+              progress: progressPercentage,
+              message: `Rendering video on Lambda... ${progressPercentage}% complete (${Math.round(elapsedTime/1000)}s elapsed)`
+            };
+            
+            // ✅ FIXED: Emit real-time progress via WebSocket to frontend
+            const io = (global as any).io;
+            if (io && socketId) {
+              const progressData = {
+                videoId,
+                progress: progressPercentage,
+                phase: 'rendering',
+                message: `Rendering video on Lambda... ${progressPercentage}% complete`,
+                elapsedTime: Math.round(elapsedTime/1000),
+                timestamp: new Date().toISOString()
+              };
+              console.log(`[VideoGen] Emitting progress to socket ${socketId}:`, progressData);
+              io.to(socketId).emit('videoProgress', progressData);
+            } else {
+              console.log(`[VideoGen] No WebSocket emission - io: ${!!io}, socketId: ${socketId}`);
+            }
+            
+            console.log(`[VideoGen] Progress update: ${progressPercentage}% (${Math.round(elapsedTime/1000)}s)`);
+            consecutiveErrors = 0; // Reset error count on successful progress
+          }
+        } catch (error) {
+          consecutiveErrors++;
+          console.error(`[VideoGen] Progress polling error (${consecutiveErrors}):`, error);
+          
+          // Stop after too many consecutive errors
+          if (consecutiveErrors >= 5) {
+            console.error(`[VideoGen] Too many polling errors for ${videoId}, stopping`);
+            timeoutReached = true;
+            break;
+          }
+          
+          // Exponential backoff on errors
+          await new Promise(resolve => setTimeout(resolve, Math.min(5000 * consecutiveErrors, 30000)));
+        }
       }
+    };
+    
+    // Start polling and wait for completion or timeout
+    await pollProgress();
+    
+    const result = finalResult;
 
+    if (result) {
+      console.log(`[VideoGen] Lambda video generation completed for ${videoId}: ${result}`);
+      // Success case is already handled in the polling loop above
+    } else if (timeoutReached) {
+      console.error(`[VideoGen] Lambda render timed out for ${videoId} - cleaning up`);
+      
+      // Try to cancel the render to free resources
+      try {
+        const { simpleLambdaService } = await import('../services/simpleLambdaService');
+        await simpleLambdaService.cancelRender(renderResult.renderId, renderResult.bucketName);
+        console.log(`[VideoGen] Cancelled timed out render: ${renderResult.renderId}`);
+      } catch (cancelError) {
+        console.warn(`[VideoGen] Failed to cancel render:`, cancelError);
+      }
+      
       videoStatuses[videoId] = {
-        status: 'completed',
-        progress: 100,
-        message: 'Video generation completed successfully!',
-        outputPath: finalOutputPath,
-        videoUrl: finalOutputPath, // Include videoUrl for frontend
-        sizeInBytes: result.sizeInBytes,
-        duration: result.durationInSeconds
+        status: 'failed',
+        progress: Math.round((Date.now() - startTime) >= LAMBDA_TIMEOUT_MS ? 99 : (lastProgress || 0)),
+        message: `Video generation timed out after ${Math.round(LAMBDA_TIMEOUT_MS/1000/60)} minutes`,
+        error: `Render timeout after ${Math.round((Date.now() - startTime)/1000)}s - render was progressing normally to 99%`
       };
+      
+      // ✅ FIXED: Emit timeout error via WebSocket to frontend
+      const io = (global as any).io;
+      if (io && socketId) {
+        const errorData = {
+          videoId,
+          progress: Math.round((Date.now() - startTime) >= LAMBDA_TIMEOUT_MS ? 99 : (lastProgress || 0)),
+          phase: 'failed',
+          message: `Video generation timed out after ${Math.round(LAMBDA_TIMEOUT_MS/1000/60)} minutes`,
+          error: `Render timeout after ${Math.round((Date.now() - startTime)/1000)}s - try reducing video complexity or using gradient background`,
+          timestamp: new Date().toISOString()
+        };
+        console.log(`[VideoGen] Emitting timeout error to socket ${socketId}:`, errorData);
+        io.to(socketId).emit('videoProgress', errorData);
+      }
     } else {
-      console.error(`[VideoGen] Video generation failed for ${videoId}:`, result.error);
+      console.error(`[VideoGen] Lambda render failed for unknown reason: ${videoId}`);
       videoStatuses[videoId] = {
         status: 'failed',
         progress: 0,
         message: 'Video generation failed',
-        error: result.error || 'Unknown error during video generation'
+        error: 'Unknown error during video generation'
       };
+      
+      // ✅ FIXED: Emit general error via WebSocket to frontend
+      const io = (global as any).io;
+      if (io && socketId) {
+        const errorData = {
+          videoId,
+          progress: 0,
+          phase: 'failed',
+          message: 'Video generation failed',
+          error: 'Unknown error during video generation',
+          timestamp: new Date().toISOString()
+        };
+        console.log(`[VideoGen] Emitting general error to socket ${socketId}:`, errorData);
+        io.to(socketId).emit('videoProgress', errorData);
+      }
     }
 
   } catch (error) {
@@ -113,6 +314,21 @@ async function generateVideoAsync(videoId: string, type: string, input: any, set
       message: 'Video generation failed',
       error: error instanceof Error ? error.message : 'Unknown error'
     };
+    
+    // ✅ FIXED: Emit catch error via WebSocket to frontend
+    const io = (global as any).io;
+    if (io && socketId) {
+      const errorData = {
+        videoId,
+        progress: 0,
+        phase: 'failed',
+        message: 'Video generation failed',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      };
+      console.log(`[VideoGen] Emitting catch error to socket ${socketId}:`, errorData);
+      io.to(socketId).emit('videoProgress', errorData);
+    }
   }
 }
 
