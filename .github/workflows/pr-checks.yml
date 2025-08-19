@@ -1,7 +1,7 @@
 name: PR Checks
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, edited]
 
 permissions:
   contents: read
@@ -57,10 +57,15 @@ jobs:
                 issue_number: pr.number,
                 labels: [label]
               });
-              console.log(`Successfully added label: ${label}`);
+              console.log(`✅ Successfully added label: ${label}`);
             } catch (error) {
-              console.log(`Could not add label ${label}: ${error.message}`);
-              core.warning(`PR size is ${label.replace('size: ', '')} (${total} lines). ${message}`);
+              console.log(`⚠️ Could not add label ${label}: ${error.message}`);
+              if (error.status === 403) {
+                console.log('ℹ️ This is likely due to insufficient permissions for the GITHUB_TOKEN');
+                console.log('ℹ️ In a real project, you would configure repository permissions or use a PAT');
+              }
+              // Still show the size information even if labeling fails
+              core.notice(`${message} (Label: ${label})`);
             }
 
   basic-checks:
@@ -74,10 +79,23 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const pr = context.payload.pull_request;
-            if (!pr.body || pr.body.trim().length < 10) {
-              core.setFailed('PR description is too short. Please add a meaningful description.');
-            } else {
-              console.log('✅ PR has adequate description');
+            const body = pr.body || '';
+            const trimmedBody = body.trim();
+            
+            console.log(`PR body length: ${trimmedBody.length} characters`);
+            console.log(`PR body content: "${trimmedBody.substring(0, 50)}..."`);
+            
+            if (!trimmedBody || trimmedBody.length < 10) {
+              console.log('❌ PR description validation failed');
+              core.setFailed(`PR description is too short (${trimmedBody.length} characters). Please add a meaningful description with at least 10 characters.`);
+              return;
+            }
+            
+            console.log('✅ PR has adequate description');
+            
+            // Additional check for template usage
+            if (!trimmedBody.includes('## Description') && !trimmedBody.includes('## What does this PR do')) {
+              core.warning('💡 Consider using the PR template for better structure');
             }
       
       - name: Check for linked issue
