@@ -1,4 +1,4 @@
-# 🚀 GitHub Workflow Best Practices
+# 🚀 GitHub Workflow Best Practices Demo
 
 A comprehensive repository demonstrating industry-standard GitHub workflow best practices, including label taxonomies, issue templates, PR templates, and quality gates.
 
