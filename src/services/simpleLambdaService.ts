@@ -160,8 +160,8 @@ export class SimpleLambdaService {
         // MAXIMUM PERFORMANCE RENDERING SETTINGS
         codec: this.config.codec,
         crf: this.config.crf,
-        concurrencyPerLambda: this.config.concurrencyPerLambda, // 8 (maximum)
-        framesPerLambda: this.config.framesPerLambda, // 20 (optimized chunks)
+        concurrencyPerLambda: this.config.concurrencyPerLambda, // 8 (maximum parallelization)
+        framesPerLambda: this.config.framesPerLambda, // 25 (optimized chunks for speed)
         
         // Output settings
         downloadBehavior: {

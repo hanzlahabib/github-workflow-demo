@@ -117,7 +117,7 @@ async function generateVideoAsync(videoId: string, type: string, input: any, set
     
     // Increased timeout since OffthreadVideo fixes resolved 87% stuck issue
     const LAMBDA_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes - videos now render to 99%
-    const POLL_INTERVAL_MS = 2000; // 2 seconds
+    const POLL_INTERVAL_MS = 1000; // 1 second for faster progress updates
     const startTime = Date.now();
     
     // Start progress polling with timeout awareness
