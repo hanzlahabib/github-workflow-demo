@@ -107,14 +107,7 @@ jobs:
             const conventionalPattern = /^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .+/;
             
             if (!conventionalPattern.test(title)) {
-              core.warning(`💡 PR title doesn't follow MOSD conventional commit format: type(scope): description
-              
-Examples:
-- feat(dashboard): add user profile component
-- fix(web): resolve form validation issue
-- docs(readme): update installation instructions
-
-Soft recommendation: Include issue ID if branch fixes multiple issues.`);
+              core.warning('💡 PR title doesn\'t follow MOSD conventional commit format: type(scope): description\\n\\nExamples:\\n- feat(dashboard): add user profile component\\n- fix(web): resolve form validation issue\\n- docs(readme): update installation instructions\\n\\nSoft recommendation: Include issue ID if branch fixes multiple issues.');
             } else {
               console.log('✅ PR title follows conventional commit format');
             }
