@@ -23,6 +23,7 @@ import videoRoutes from './routes/video';
 import cacheRoutes from './routes/cache';
 import adminRoutes from './routes/admin';
 import lambdaRoutes from './routes/lambda';
+import billingRoutes from './routes/billing';
 
 // Middleware
 import { requestLogger } from './middleware/requestLogger';
@@ -143,6 +144,7 @@ export async function createServer(): Promise<{ app: express.Application; httpSe
   app.use('/api/cache', cacheRoutes);
   app.use('/api/admin', adminRoutes);
   app.use('/api/lambda', lambdaRoutes);
+  app.use('/api/billing', billingRoutes);
 
   console.log('✅ API routes initialized (including cache management)');
 
