@@ -8,10 +8,21 @@ The **MOSD Drug Control - Sprint Board** is designed for daily standup meetings 
 
 ## 🏛️ Board Structure
 
-### Status Columns
-- **📋 Todo** - Items planned for the sprint but not started
-- **🏃 In Progress** - Items currently being worked on
-- **✅ Done** - Completed items ready for review/testing
+### Enhanced Kanban Board View
+The project board uses a comprehensive 7-column workflow that provides complete visibility into work progression and team capacity:
+
+```
+📋 Backlog → 📝 Todo → 🏃 In Progress → 🚫 Blocked → 👀 In Review → ✅ Done → 🚀 Released
+```
+
+### Workflow Status Columns
+- **📋 Backlog** - Items not yet planned for current sprint
+- **📝 Todo** - Items planned for current sprint, ready to start
+- **🏃 In Progress** - Items currently being actively worked on
+- **🚫 Blocked** - Items that cannot progress due to dependencies
+- **👀 In Review** - Items completed and under code/design review
+- **✅ Done** - Items completed, reviewed, and ready for deployment
+- **🚀 Released** - Items deployed to production and verified
 
 ### Custom Fields
 
@@ -36,14 +47,16 @@ The **MOSD Drug Control - Sprint Board** is designed for daily standup meetings 
 
 ### Before Standup (5 minutes)
 1. **Team members update their items**:
-   - Move completed items to "Done" 
-   - Update progress on "In Progress" items
-   - Add any new blockers as comments
+   - Move completed items to "👀 In Review" or "✅ Done"
+   - Update progress on "🏃 In Progress" items
+   - Move any blocked items to "🚫 Blocked" with blocker details
+   - Pull new items from "📝 Todo" if capacity allows
 
 2. **Scrum Master reviews board**:
-   - Check for overdue items
-   - Identify potential blockers
-   - Prepare discussion points
+   - Check for items stuck in "🚫 Blocked" status
+   - Review "👀 In Review" items for review assignments
+   - Identify sprint progress vs goals
+   - Prepare discussion points for blockers
 
 ### During Standup (15 minutes)
 
@@ -66,9 +79,15 @@ Each team member covers their items in order:
 - **Blockers**: None
 
 #### Board Review (5 minutes)
-1. **Sprint Progress**: Review burn-down of story points
-2. **Blockers**: Address critical blockers with action items
-3. **Sprint Goals**: Check alignment with sprint objectives
+1. **Sprint Progress**: Review story points across all columns
+   - **📋 Backlog**: Items for future sprints
+   - **📝 Todo**: Ready items (should be ≤ 3 per person)
+   - **🏃 In Progress**: Active work (should be 1-2 per person)
+   - **🚫 Blocked**: Items needing immediate attention
+   - **👀 In Review**: Items waiting for review assignment
+   - **✅ Done**: Completed items ready for deployment
+2. **Blockers**: Address all "🚫 Blocked" items with action plans
+3. **Sprint Goals**: Check if current progress aligns with sprint commitment
 
 ### After Standup (5 minutes)
 1. **Update board** with any changes discussed
@@ -99,9 +118,12 @@ Each team member covers their items in order:
 ## 🔄 Workflow Automation
 
 ### Automatic Updates
-- **Issue creation** → Auto-assigned to "Todo"
-- **PR linked** → Moves to "In Progress" 
-- **PR merged** → Moves to "Done"
+- **Issue creation** → Auto-assigned to "📋 Backlog"
+- **Sprint assignment** → Moves to "📝 Todo"
+- **PR created** → Moves to "🏃 In Progress" 
+- **PR ready for review** → Moves to "👀 In Review"
+- **PR merged** → Moves to "✅ Done"
+- **Deployment completed** → Moves to "🚀 Released"
 - **Label changes** → Updates priority field
 
 ### Integration Points
@@ -125,13 +147,14 @@ Each team member covers their items in order:
 
 ### Current Sprint Items
 
-| Issue | Type | Priority | Status | Assignee | Story Points |
-|-------|------|----------|---------|----------|--------------|
-| #15 | Task | High | Blocked | Ahmed | 5 |
-| #12 | Subtask | High | Ready for Review | Fatima | 3 |
-| #10 | Task | High | In Progress | Fatima | 5 |
-| #11 | Task | Medium | Todo | Ahmed | 8 |
-| #8 | Story | High | In Progress | Team | 13 |
+| Issue | Type | Priority | Workflow Status | Assignee | Story Points |
+|-------|------|----------|-----------------|----------|--------------|
+| #15 | Task | High | 🚫 Blocked | Ahmed | 5 |
+| #12 | Subtask | High | 👀 In Review | Fatima | 3 |
+| #10 | Task | High | 🏃 In Progress | Fatima | 5 |
+| #11 | Task | Medium | 📝 Todo | Ahmed | 8 |
+| #8 | Story | High | 🏃 In Progress | Team | 13 |
+| #9 | Story | Medium | 📋 Backlog | Unassigned | 8 |
 
 ## 🚀 Best Practices
 
@@ -212,11 +235,11 @@ Each team member covers their items in order:
 
 **Ahmed**: "Yesterday I worked on issue #11, the consultation booking API endpoints. I completed the basic CRUD operations. Today I'm continuing with the authentication integration. I'm blocked on issue #15 - the performance optimization - because I need the database indexing strategy from the DBA team."
 
-**Fatima**: "Yesterday I finished the consultation booking form component #10. Today I'm working on the form validation logic #12, which is ready for review. I have no blockers, but I'll need Ahmed's API endpoints by Wednesday to complete the integration testing."
+**Fatima**: "Yesterday I finished the consultation booking form component #10 and moved it to 'In Review'. Today I'm working on the form validation logic #12, which is now ready for code review. I have no blockers, but I'll need Ahmed's API endpoints by Wednesday to complete the integration testing."
 
 **Dr. Mohammad**: "Yesterday I reviewed Fatima's PR for the form component and provided feedback. Today I'm starting work on the case status tracking component #6. No blockers on my end."
 
-**Scrum Master**: "Great progress team! I'll follow up on Ahmed's blocker with the DBA team this morning. We're on track with 12 out of 25 story points completed. Let's keep the momentum going!"
+**Scrum Master**: "Great progress team! I see we have one item in 'Blocked' status - I'll follow up on Ahmed's blocker with the DBA team this morning. We have 3 items 'In Progress', 1 'In Review', and we're on track with 12 out of 25 story points completed. Let's keep the momentum going!"
 
 ---
 
