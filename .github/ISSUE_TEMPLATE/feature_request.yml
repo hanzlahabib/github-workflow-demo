@@ -1,0 +1,47 @@
+name: "✨ Feature Request"
+description: Request a new feature or enhancement
+title: "[FEATURE] "
+labels: ["type: feature", "status: triage"]
+body:
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature?
+      options:
+        - High (Client requirement)
+        - Medium (Team productivity)
+        - Low (Nice to have)
+    validations:
+      required: true
+  
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature Description
+      description: What do you want to achieve?
+      placeholder: As a [user type], I want to [action] so that [benefit]
+    validations:
+      required: true
+  
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: How will we know this is complete?
+      placeholder: |
+        - [ ] Criteria 1
+        - [ ] Criteria 2
+        - [ ] Criteria 3
+  
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which part of the system?
+      options:
+        - Frontend
+        - Backend
+        - Database
+        - AI/ML
+        - Infrastructure
