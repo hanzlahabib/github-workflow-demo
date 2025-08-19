@@ -121,12 +121,12 @@ jobs:
             const pr = context.payload.pull_request;
             const title = pr.title;
             
-            // MOSD conventional commit format: type(scope): description
+            // Rihal conventional commit format: type(scope): description
             const conventionalPattern = /^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .+/;
             
             if (!conventionalPattern.test(title)) {
               const message = [
-                '💡 PR title doesn\'t follow MOSD conventional commit format: type(scope): description',
+                '💡 PR title doesn\'t follow Rihal conventional commit format: type(scope): description',
                 '',
                 'Examples:',
                 '- feat(dashboard): add user profile component',
