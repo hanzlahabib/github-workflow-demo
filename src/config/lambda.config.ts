@@ -35,7 +35,7 @@ export interface LambdaConfig {
  * Default Lambda configuration - using actual deployed function
  */
 const DEFAULT_CONFIG: LambdaConfig = {
-  functionName: 'remotion-render-4-0-331-mem3008mb-disk10240mb-900sec',
+  functionName: 'remotion-render-4-0-330-mem3008mb-disk10240mb-900sec',
   region: 'us-east-1',
   bucketName: 'remotionlambda-useast1-oelksfi1c7',
   siteUrl: 'https://remotionlambda-useast1-oelksfi1c7.s3.us-east-1.amazonaws.com/sites/qsqxdgnwtz/index.html',
@@ -45,11 +45,11 @@ const DEFAULT_CONFIG: LambdaConfig = {
   timeout: 840, // 14 minutes (safe margin for 15-min limit)
   diskSize: 10240, // 10GB disk space maximum
   
-  // OPTIMIZED RENDERING SETTINGS - Tuned for 88% encoding issue
-  concurrencyPerLambda: 1, // Single thread to avoid memory pressure during encoding
-  framesPerLambda: 15, // Smaller chunks to prevent memory buildup during final encoding
+  // HIGH-SPEED RENDERING SETTINGS - Optimized for maximum performance
+  concurrencyPerLambda: 8, // Maximum parallelization for speed
+  framesPerLambda: 25, // Balanced chunk size for optimal throughput
   codec: 'h264',
-  crf: 18, // High quality
+  crf: 23, // Balanced quality/speed (23 = good quality, much faster than 18)
   
   // RELIABILITY & COST OPTIMIZATION
   maxRetries: 3,
