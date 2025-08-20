@@ -715,11 +715,21 @@ Impact: Blocks all user access
                 <h2>🌿 Branch & Commit Standards</h2>
                 <div class="checklist">
                     <div class="checklist-item fragment" style="margin-bottom: 30px;">
-                        <h4>Branch Naming - Include Issue ID</h4>
-                        <p>Keep your existing naming convention, just ensure issue ID is included:</p>
-                        <code>your-feature-branch-123</code> (existing + issue ID)<br>
-                        <code>bugfix-login-error-456</code> (existing + issue ID)<br>
-                        <code>hotfix-security-patch-789</code> (existing + issue ID)
+                        <h4>Branch Naming - Issue ID First</h4>
+                        <p><strong>Best Practice:</strong> Start with issue ID for better organization and traceability</p>
+                        <div style="background: var(--success-color); color: white; padding: 10px; border-radius: 5px; margin: 10px 0;">
+                            <strong>✅ Recommended Format:</strong><br>
+                            <code style="color: white;">123-feature-user-authentication</code><br>
+                            <code style="color: white;">456-fix-login-validation-bug</code><br>
+                            <code style="color: white;">789-hotfix-security-vulnerability</code>
+                        </div>
+                        <div style="background: var(--warning-color); color: white; padding: 10px; border-radius: 5px; margin: 10px 0;">
+                            <strong>⚠️ Alternative (if needed):</strong><br>
+                            <code style="color: white;">feature/123-user-authentication</code><br>
+                            <code style="color: white;">bugfix/456-login-validation</code><br>
+                            <code style="color: white;">hotfix/789-security-patch</code>
+                        </div>
+                        <p><strong>Benefits:</strong> Easy sorting, quick issue lookup, better Git history</p>
                     </div>
                     <div class="checklist-item fragment">
                         <h4>Commit Messages - Add Issue References</h4>
