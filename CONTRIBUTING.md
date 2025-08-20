@@ -1,6 +1,6 @@
 # 🤝 Contributing to GitHub Workflow Best Practices
 
-Thank you for your interest in contributing to this project! This guide will help you understand how to contribute effectively.
+Thank you for your interest in contributing to this project! This repository demonstrates communication-first GitHub workflows designed to improve team collaboration through structured templates and quality gates.
 
 ## 📋 Table of Contents
 
