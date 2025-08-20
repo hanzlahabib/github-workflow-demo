@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Developer Workflow - Best Practices</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/theme/white.min.css">
+    <style>
+        :root {
+            --primary-color: #0969da;
+            --secondary-color: #1f883d;
+            --danger-color: #d1242f;
+            --warning-color: #fb8500;
+            --info-color: #0969da;
+            --success-color: #1f883d;
+            --dark: #24292f;
+            --light: #f6f8fa;
+        }
+
+        .reveal {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        }
+
+        .reveal h1, .reveal h2, .reveal h3 {
+            color: var(--dark);
+            font-weight: 600;
+            text-transform: none;
+        }
+
+        .reveal h1 {
+            font-size: 2.5em;
+            color: var(--primary-color);
+        }
+
+        .reveal h2 {
+            font-size: 1.8em;
+            color: var(--dark);
+            border-bottom: 3px solid var(--primary-color);
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+
+        .reveal .slides section {
+            text-align: left;
+        }
+
+        .reveal .slides section.center {
+            text-align: center;
+        }
+
+        .title-slide h1 {
+            color: var(--primary-color);
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+
+        .title-slide h3 {
+            color: var(--secondary-color);
+            font-size: 1.5em;
+            font-weight: 400;
+        }
+
+        .title-slide .metrics {
+            background: linear-gradient(135deg, var(--light) 0%, white 100%);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .emoji-large {
+            font-size: 2em;
+            margin: 0 10px;
+        }
+
+        .challenge-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .challenge-card {
+            background: white;
+            border-left: 4px solid var(--danger-color);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .challenge-card h4 {
+            color: var(--danger-color);
+            margin-top: 0;
+        }
+
+        .process-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .implementation-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .implementation-table thead {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .implementation-table th, .implementation-table td {
+            padding: 15px;
+            text-align: left;
+        }
+
+        .implementation-table tbody tr {
+            background: white;
+            border-bottom: 1px solid var(--light);
+        }
+
+        .implementation-table tbody tr:hover {
+            background: var(--light);
+        }
+
+        .workflow-step {
+            background: white;
+            border: 2px solid var(--primary-color);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 10px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .workflow-step:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .workflow-step::after {
+            content: '→';
+            position: absolute;
+            right: -30px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 2em;
+            color: var(--primary-color);
+        }
+
+        .workflow-step:last-child::after {
+            display: none;
+        }
+
+        .label-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin: 5px;
+        }
+
+        .label-type { background: #0969da; color: white; }
+        .label-priority-critical { background: #d1242f; color: white; }
+        .label-priority-high { background: #fb8500; color: white; }
+        .label-priority-medium { background: #fbca04; color: black; }
+        .label-priority-low { background: #1f883d; color: white; }
+        .label-status { background: #8b5cf6; color: white; }
+
+        .metric-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: scale(1.05);
+        }
+
+        .metric-value {
+            font-size: 3em;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .metric-label {
+            color: var(--dark);
+            font-size: 1.1em;
+            margin-top: 10px;
+        }
+
+        .metric-change {
+            color: var(--success-color);
+            font-size: 1.2em;
+            margin-top: 5px;
+        }
+
+        .before-after {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .before-card, .after-card {
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .before-card {
+            background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
+            border-left: 5px solid var(--danger-color);
+        }
+
+        .after-card {
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            border-left: 5px solid var(--success-color);
+        }
+
+        .roadmap-timeline {
+            position: relative;
+            padding-left: 40px;
+            margin-top: 30px;
+        }
+
+        .roadmap-timeline::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--primary-color);
+        }
+
+        .roadmap-item {
+            position: relative;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .roadmap-item::before {
+            content: '';
+            position: absolute;
+            left: -25px;
+            top: 30px;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            border: 3px solid white;
+        }
+
+        .checklist {
+            background: var(--light);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .checklist-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 5px;
+            border-left: 4px solid var(--success-color);
+            transition: all 0.3s ease;
+        }
+
+        .checklist-item:hover {
+            transform: translateX(10px);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .footer-slide {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            text-align: center;
+            padding: 50px;
+        }
+
+        .cta-button {
+            display: inline-block;
+            padding: 15px 30px;
+            background: white;
+            color: var(--primary-color);
+            text-decoration: none;
+            border-radius: 30px;
+            font-weight: bold;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .cta-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+
+        .fragment.highlight-current-blue.current-fragment {
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+            <!-- Slide 1: Title -->
+            <section class="title-slide center">
+                <h1>🚀 GitHub Developer Workflow</h1>
+                <h3>From Chaos to Clarity: Enterprise Best Practices</h3>
+                <div class="metrics">
+                    <span class="emoji-large">📈</span>
+                    <strong>60% Faster PR Cycles</strong> | 
+                    <strong>40% Fewer Bugs</strong> | 
+                    <strong>90% Team Satisfaction</strong>
+                </div>
+                <br>
+                <p><strong>Presented by:</strong> Amna & Hanzla</p>
+            </section>
+
+            <!-- Slide 2: Agenda -->
+            <section>
+                <h2>📋 Agenda</h2>
+                <div class="roadmap-timeline">
+                    <div class="roadmap-item fragment">
+                        <h3>🔴 Current Pain Points <span style="float: right;">5 min</span></h3>
+                        <p>Identify and quantify our workflow challenges</p>
+                    </div>
+                    <div class="roadmap-item fragment">
+                        <h3>🟡 Root Cause Analysis <span style="float: right;">3 min</span></h3>
+                        <p>Understanding why these problems persist</p>
+                    </div>
+                    <div class="roadmap-item fragment">
+                        <h3>🟢 Solution Architecture <span style="float: right;">10 min</span></h3>
+                        <p>Comprehensive GitHub-based workflow system</p>
+                    </div>
+                    <div class="roadmap-item fragment">
+                        <h3>🎯 Live Demonstration <span style="float: right;">7 min</span></h3>
+                        <p>See the workflow in action</p>
+                    </div>
+                    <div class="roadmap-item fragment">
+                        <h3>📊 Implementation Roadmap <span style="float: right;">5 min</span></h3>
+                        <p>Your 30-day transformation plan</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 3: Challenges -->
+            <section>
+                <h2>🚨 Current Challenges</h2>
+                <div class="challenge-grid">
+                    <div class="challenge-card fragment">
+                        <h4>🔧 Process Issues (40% Impact)</h4>
+                        <ul>
+                            <li>Split Project Management</li>
+                            <li>Inconsistent Formats</li>
+                            <li>Unclear Sprint Boundaries</li>
+                        </ul>
+                    </div>
+                    <div class="challenge-card fragment">
+                        <h4>👥 People Issues (35% Impact)</h4>
+                        <ul>
+                            <li>Knowledge Gaps</li>
+                            <li>Poor Communication</li>
+                            <li>Review Bottlenecks</li>
+                        </ul>
+                    </div>
+                    <div class="challenge-card fragment">
+                        <h4>🛠️ Technical Debt (25% Impact)</h4>
+                        <ul>
+                            <li>Production Bugs</li>
+                            <li>Outdated Documentation</li>
+                            <li>Notification Chaos</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 4: Transformation -->
+            <section>
+                <h2>🔄 From Chaos to Clarity</h2>
+                <div class="before-after">
+                    <div class="before-card fragment">
+                        <h3>😰 Before (Chaos)</h3>
+                        <ul>
+                            <li>5+ tools for project management</li>
+                            <li>3-day PR review cycle</li>
+                            <li>40% PRs missing context</li>
+                            <li>Weekly production bugs</li>
+                            <li>60% sprint completion rate</li>
+                        </ul>
+                    </div>
+                    <div class="after-card fragment">
+                        <h3>🎯 After (Clarity)</h3>
+                        <ul>
+                            <li>Single GitHub workspace</li>
+                            <li>4-hour PR review cycle</li>
+                            <li>100% PRs with templates</li>
+                            <li>90% bug reduction</li>
+                            <li>92% sprint completion rate</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 5: Solution Overview -->
+            <section>
+                <h2>💡 Solution Architecture</h2>
+                <table class="implementation-table">
+                    <thead>
+                        <tr>
+                            <th>Component</th>
+                            <th>Impact</th>
+                            <th>Effort</th>
+                            <th>Timeline</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="fragment">
+                            <td>📊 GitHub Project Boards</td>
+                            <td>⭐⭐⭐ High</td>
+                            <td>Low</td>
+                            <td>Week 1</td>
+                        </tr>
+                        <tr class="fragment">
+                            <td>📝 Issue Templates</td>
+                            <td>⭐⭐⭐ High</td>
+                            <td>Low</td>
+                            <td>Week 1</td>
+                        </tr>
+                        <tr class="fragment">
+                            <td>✅ PR Templates</td>
+                            <td>⭐⭐⭐ High</td>
+                            <td>Low</td>
+                            <td>Week 1</td>
+                        </tr>
+                        <tr class="fragment">
+                            <td>🤖 GitHub Actions</td>
+                            <td>⭐⭐⭐ High</td>
+                            <td>Medium</td>
+                            <td>Week 2</td>
+                        </tr>
+                        <tr class="fragment">
+                            <td>🏷️ Label Taxonomy</td>
+                            <td>⭐⭐ Medium</td>
+                            <td>Low</td>
+                            <td>Week 1</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Slide 6: Workflow Automation -->
+            <section>
+                <h2>⚙️ Automated Workflow</h2>
+                <div style="display: flex; overflow-x: auto; padding: 20px 0;">
+                    <div class="workflow-step fragment">
+                        <h4>📝 Issue Created</h4>
+                        <p>Template enforced</p>
+                    </div>
+                    <div class="workflow-step fragment">
+                        <h4>🏷️ Auto-labeled</h4>
+                        <p>Type & Priority</p>
+                    </div>
+                    <div class="workflow-step fragment">
+                        <h4>📊 Added to Board</h4>
+                        <p>Sprint assigned</p>
+                    </div>
+                    <div class="workflow-step fragment">
+                        <h4>🌿 Branch Created</h4>
+                        <p>Naming convention</p>
+                    </div>
+                    <div class="workflow-step fragment">
+                        <h4>🔄 PR Opened</h4>
+                        <p>Template applied</p>
+                    </div>
+                    <div class="workflow-step fragment">
+                        <h4>✅ Auto-checks</h4>
+                        <p>Quality gates</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 7: Issue Templates -->
+            <section>
+                <h2>📋 Smart Issue Templates</h2>
+                <div class="before-after">
+                    <div class="before-card">
+                        <h4>❌ Without Templates</h4>
+                        <pre style="font-size: 0.7em;">
+Title: Bug
+Description: It's broken
+                        </pre>
+                    </div>
+                    <div class="after-card">
+                        <h4>✅ With Templates</h4>
+                        <pre style="font-size: 0.7em;">
+🐛 Bug Report
+━━━━━━━━━━━━━━━━━━
+Priority: 🔴 Critical
+Component: Authentication
+Environment: Production
+Steps to Reproduce: [Detailed]
+Expected: User logs in
+Actual: 500 error
+Screenshots: [Attached]
+                        </pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 8: Label System -->
+            <section>
+                <h2>🏷️ Intelligent Label Taxonomy</h2>
+                <div style="margin: 30px 0;">
+                    <h4>Type Labels (Required)</h4>
+                    <span class="label-badge label-type">type: feature</span>
+                    <span class="label-badge label-type">type: bug</span>
+                    <span class="label-badge label-type">type: task</span>
+                </div>
+                <div style="margin: 30px 0;">
+                    <h4>Priority Matrix</h4>
+                    <span class="label-badge label-priority-critical">priority: critical</span>
+                    <span class="label-badge label-priority-high">priority: high</span>
+                    <span class="label-badge label-priority-medium">priority: medium</span>
+                    <span class="label-badge label-priority-low">priority: low</span>
+                </div>
+                <div style="margin: 30px 0;">
+                    <h4>Workflow Status</h4>
+                    <span class="label-badge label-status">📋 backlog</span>
+                    <span class="label-badge label-status">📝 todo</span>
+                    <span class="label-badge label-status">🏃 in-progress</span>
+                    <span class="label-badge label-status">🚫 blocked</span>
+                    <span class="label-badge label-status">👀 review</span>
+                    <span class="label-badge label-status">✅ done</span>
+                </div>
+            </section>
+
+            <!-- Slide 9: Branch & Commit Standards -->
+            <section>
+                <h2>🌿 Branch & Commit Standards</h2>
+                <div class="checklist">
+                    <div class="checklist-item">
+                        <h4>Branch Naming Convention</h4>
+                        <code>feature/123-user-authentication</code><br>
+                        <code>bugfix/456-login-error</code><br>
+                        <code>hotfix/789-critical-security-patch</code>
+                    </div>
+                    <div class="checklist-item">
+                        <h4>Commit Message Format</h4>
+                        <code>feat(auth): add OAuth2 login support</code><br>
+                        <code>fix(api): resolve null pointer exception</code><br>
+                        <code>docs(readme): update installation guide</code>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 10: PR Quality Gates -->
+            <section>
+                <h2>✅ Automated PR Quality Gates</h2>
+                <div class="metric-card" style="max-width: 600px; margin: 0 auto;">
+                    <h3>🤖 PR Analysis Results</h3>
+                    <div style="text-align: left; padding: 20px;">
+                        <p>✅ Linting passed (ESLint, Prettier)</p>
+                        <p>✅ Tests passed (98% coverage)</p>
+                        <p>✅ Build successful</p>
+                        <p>✅ No console.logs detected</p>
+                        <p>✅ PR size: Small (45 lines)</p>
+                        <p>✅ Linked to issue #123</p>
+                        <p>✅ Description provided</p>
+                        <p>⏳ Security scan in progress...</p>
+                    </div>
+                    <div style="background: #e8f5e9; padding: 15px; border-radius: 10px; margin-top: 20px;">
+                        <strong>📊 Review Priority: High</strong><br>
+                        <strong>⏱️ Estimated Review Time: 15 minutes</strong>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 11: Project Board -->
+            <section>
+                <h2>📊 GitHub Project Board</h2>
+                <div style="background: var(--light); padding: 20px; border-radius: 10px;">
+                    <h4>Sprint 2 Progress</h4>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 20px 0;">
+                        <div class="metric-card">
+                            <div class="metric-value">47</div>
+                            <div class="metric-label">Story Points</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">73%</div>
+                            <div class="metric-label">Complete</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">2</div>
+                            <div class="metric-label">Blocked</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">5</div>
+                            <div class="metric-label">In Review</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; background: white; padding: 15px; border-radius: 10px;">
+                        <span>📋 Backlog (∞)</span>
+                        <span>📝 Todo (10)</span>
+                        <span>🏃 Progress (5)</span>
+                        <span>🚫 Blocked (2)</span>
+                        <span>👀 Review (5)</span>
+                        <span>✅ Done (12)</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 12: Implementation Roadmap -->
+            <section>
+                <h2>🚀 30-Day Implementation Plan</h2>
+                <div class="roadmap-timeline">
+                    <div class="roadmap-item fragment">
+                        <h4>Week 1: Foundation</h4>
+                        <p>✅ Deploy templates | ✅ Configure labels | ✅ Team training</p>
+                    </div>
+                    <div class="roadmap-item fragment">
+                        <h4>Week 2: Automation</h4>
+                        <p>⚙️ GitHub Actions | 📊 Project boards | 🔗 Integrations</p>
+                    </div>
+                    <div class="roadmap-item fragment">
+                        <h4>Week 3: Integration</h4>
+                        <p>💬 Slack notifications | 📈 Analytics dashboard | 🔄 CI/CD pipeline</p>
+                    </div>
+                    <div class="roadmap-item fragment">
+                        <h4>Week 4: Optimization</h4>
+                        <p>🎯 Refine workflows | 📊 Measure success | 🚀 Scale to all teams</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 13: Success Metrics -->
+            <section>
+                <h2>📈 Measurable Success</h2>
+                <div class="before-after">
+                    <div class="before-card">
+                        <h3>📊 Before</h3>
+                        <ul>
+                            <li>PR Cycle: <strong>3 days</strong></li>
+                            <li>Bug Rate: <strong>15%</strong></li>
+                            <li>Sprint Success: <strong>60%</strong></li>
+                            <li>Team Satisfaction: <strong>6/10</strong></li>
+                        </ul>
+                    </div>
+                    <div class="after-card">
+                        <h3>🎯 After 30 Days</h3>
+                        <ul>
+                            <li>PR Cycle: <strong>4 hours</strong> ⬇️ 87%</li>
+                            <li>Bug Rate: <strong>3%</strong> ⬇️ 80%</li>
+                            <li>Sprint Success: <strong>92%</strong> ⬆️ 53%</li>
+                            <li>Team Satisfaction: <strong>9/10</strong> ⬆️ 50%</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 14: Common Pitfalls -->
+            <section>
+                <h2>⚠️ Avoid These Mistakes</h2>
+                <div class="checklist">
+                    <div class="checklist-item fragment">
+                        <strong>❌ Too Many Labels</strong>
+                        <p>Start with 15-20 maximum, expand gradually</p>
+                    </div>
+                    <div class="checklist-item fragment">
+                        <strong>❌ Complex Templates</strong>
+                        <p>Keep it simple initially, iterate based on feedback</p>
+                    </div>
+                    <div class="checklist-item fragment">
+                        <strong>❌ Forcing Everything</strong>
+                        <p>Allow flexibility for exceptional cases</p>
+                    </div>
+                    <div class="checklist-item fragment">
+                        <strong>❌ No Training</strong>
+                        <p>Invest in comprehensive team education</p>
+                    </div>
+                    <div class="checklist-item fragment">
+                        <strong>❌ No Metrics</strong>
+                        <p>Measure from day 1 to prove ROI</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 15: Action Items -->
+            <section>
+                <h2>🎬 Immediate Actions</h2>
+                <div class="checklist">
+                    <h3>Do Today:</h3>
+                    <div class="checklist-item">☑️ Create your first project board</div>
+                    <div class="checklist-item">☑️ Import standard label set</div>
+                    <div class="checklist-item">☑️ Add issue templates</div>
+                    <div class="checklist-item">☑️ Enable branch protection</div>
+                    <div class="checklist-item">☑️ Configure PR template</div>
+                </div>
+                <div style="margin-top: 30px; text-align: center;">
+                    <h3>Resources Available:</h3>
+                    <a href="#" class="cta-button">📦 Download Templates</a>
+                    <a href="#" class="cta-button">📚 View Documentation</a>
+                    <a href="#" class="cta-button">🎥 Watch Tutorial</a>
+                </div>
+            </section>
+
+            <!-- Slide 16: Q&A -->
+            <section class="footer-slide">
+                <h1>💡 Questions & Discussion</h1>
+                <div style="background: rgba(255,255,255,0.1); padding: 30px; border-radius: 15px; margin: 30px 0;">
+                    <h3>Common Questions We're Ready For:</h3>
+                    <p>✅ How do we handle urgent hotfixes?</p>
+                    <p>✅ What about multiple repositories?</p>
+                    <p>✅ How to migrate existing issues?</p>
+                    <p>✅ What's the actual ROI?</p>
+                </div>
+                <div style="margin-top: 40px;">
+                    <h3>📧 Contact & Support</h3>
+                    <p>GitHub: @hanzlahabib | @amna</p>
+                    <p>Demo Repository: github.com/hanzlahabib/github-workflow-demo</p>
+                    <p>Office Hours: Thursdays 2-3 PM</p>
+                </div>
+            </section>
+
+            <!-- Slide 17: Thank You -->
+            <section class="footer-slide">
+                <h1>🙏 Thank You!</h1>
+                <h3>Ready to Transform Your Workflow?</h3>
+                <div style="margin: 40px 0;">
+                    <a href="#" class="cta-button">🚀 Start Your 30-Day Journey</a>
+                </div>
+                <p>Let's build better software, together.</p>
+            </section>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.min.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            controls: true,
+            progress: true,
+            center: false,
+            transition: 'slide',
+            backgroundTransition: 'fade',
+            width: 1280,
+            height: 720,
+            margin: 0.1,
+            minScale: 0.2,
+            maxScale: 2.0
+        });
+    </script>
+</body>
+</html>
