@@ -324,6 +324,28 @@
             color: var(--primary-color);
             font-weight: bold;
         }
+
+        /* Code protection - prevent selection and copying */
+        code, pre {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Copyright watermark */
+        body::after {
+            content: "© 2024 Hanzla & Amna - GitHub Workflow Best Practices";
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 10px;
+            color: rgba(0,0,0,0.3);
+            pointer-events: none;
+            z-index: 9999;
+        }
     </style>
 </head>
 <body>
@@ -838,6 +860,97 @@ Impact: Blocks all user access
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.min.js"></script>
     <script>
+        // Copyright protection and anti-copy measures
+        (function() {
+            'use strict';
+            
+            // Disable right-click context menu
+            document.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                return false;
+            });
+            
+            // Disable text selection only for code elements
+            document.addEventListener('selectstart', function(e) {
+                if (e.target.tagName === 'CODE' || e.target.closest('code') || e.target.closest('pre')) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+            
+            // Disable drag and drop for code elements
+            document.addEventListener('dragstart', function(e) {
+                if (e.target.tagName === 'CODE' || e.target.closest('code') || e.target.closest('pre')) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+            
+            // Disable common keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                // Disable F12 (Developer Tools)
+                if (e.keyCode === 123) {
+                    e.preventDefault();
+                    return false;
+                }
+                // Disable Ctrl+Shift+I (Developer Tools)
+                if (e.ctrlKey && e.shiftKey && e.keyCode === 73) {
+                    e.preventDefault();
+                    return false;
+                }
+                // Disable Ctrl+Shift+J (Console)
+                if (e.ctrlKey && e.shiftKey && e.keyCode === 74) {
+                    e.preventDefault();
+                    return false;
+                }
+                // Disable Ctrl+U (View Source)
+                if (e.ctrlKey && e.keyCode === 85) {
+                    e.preventDefault();
+                    return false;
+                }
+                // Disable Ctrl+S (Save As)
+                if (e.ctrlKey && e.keyCode === 83) {
+                    e.preventDefault();
+                    return false;
+                }
+                // Disable Ctrl+A (Select All) only for code elements
+                if (e.ctrlKey && e.keyCode === 65) {
+                    if (e.target.tagName === 'CODE' || e.target.closest('code') || e.target.closest('pre')) {
+                        e.preventDefault();
+                        return false;
+                    }
+                }
+                // Disable Ctrl+C (Copy) only for code elements
+                if (e.ctrlKey && e.keyCode === 67) {
+                    if (e.target.tagName === 'CODE' || e.target.closest('code') || e.target.closest('pre')) {
+                        e.preventDefault();
+                        return false;
+                    }
+                }
+                // Disable Ctrl+P (Print)
+                if (e.ctrlKey && e.keyCode === 80) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+            
+            // Disable print
+            window.addEventListener('beforeprint', function(e) {
+                e.preventDefault();
+                return false;
+            });
+            
+            // Clear console periodically
+            setInterval(function() {
+                console.clear();
+            }, 1000);
+            
+            // Add copyright notice
+            console.log('%c⚠️ COPYRIGHT PROTECTED ⚠️', 'color: red; font-size: 20px; font-weight: bold;');
+            console.log('%c© 2024 Hanzla & Amna - GitHub Workflow Best Practices', 'color: #333; font-size: 14px;');
+            console.log('%cUnauthorized copying, distribution, or modification is strictly prohibited.', 'color: #666; font-size: 12px;');
+        })();
+        
         Reveal.initialize({
             hash: true,
             controls: true,
