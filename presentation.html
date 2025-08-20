@@ -512,14 +512,14 @@
                 <div class="before-after">
                     <div class="before-card">
                         <h4>❌ Without Templates</h4>
-                        <pre style="font-size: 0.7em;">
+                        <pre style="font-size: 0.7em; padding: 15px; margin: 10px 0; background: rgba(255,255,255,0.7); border-radius: 5px;">
 Title: Bug
 Description: It's broken
                         </pre>
                     </div>
                     <div class="after-card">
                         <h4>✅ With Templates</h4>
-                        <pre style="font-size: 0.7em;">
+                        <pre style="font-size: 0.7em; padding: 15px; margin: 10px 0; background: rgba(255,255,255,0.7); border-radius: 5px;">
 🐛 Bug Report
 ━━━━━━━━━━━━━━━━━━
 Priority: 🔴 Critical
@@ -559,6 +559,10 @@ Screenshots: [Attached]
                     <span class="label-badge label-status">👀 review</span>
                     <span class="label-badge label-status">✅ done</span>
                 </div>
+                <div style="background: var(--light); padding: 15px; border-radius: 8px; margin-top: 20px; font-size: 0.85em;">
+                    <strong>💡 Note:</strong> Teams can add project-specific feature labels (e.g., "auth", "ui", "api", "docs") 
+                    to categorize work by functional area. Keep it simple - start with 15-20 labels maximum.
+                </div>
             </section>
 
             <!-- Slide 9: Branch & Commit Standards -->
@@ -566,16 +570,18 @@ Screenshots: [Attached]
                 <h2>🌿 Branch & Commit Standards</h2>
                 <div class="checklist">
                     <div class="checklist-item">
-                        <h4>Branch Naming Convention</h4>
-                        <code>feature/123-user-authentication</code><br>
-                        <code>bugfix/456-login-error</code><br>
-                        <code>hotfix/789-critical-security-patch</code>
+                        <h4>Branch Naming - Include Issue ID</h4>
+                        <p>Keep your existing naming convention, just ensure issue ID is included:</p>
+                        <code>your-feature-branch-123</code> (existing + issue ID)<br>
+                        <code>bugfix-login-error-456</code> (existing + issue ID)<br>
+                        <code>hotfix-security-patch-789</code> (existing + issue ID)
                     </div>
                     <div class="checklist-item">
-                        <h4>Commit Message Format</h4>
-                        <code>feat(auth): add OAuth2 login support</code><br>
-                        <code>fix(api): resolve null pointer exception</code><br>
-                        <code>docs(readme): update installation guide</code>
+                        <h4>Commit Messages - Add Issue References</h4>
+                        <p>We already have good commit formats, just add issue links:</p>
+                        <code>feat(auth): add OAuth2 support (closes #123)</code><br>
+                        <code>fix(api): resolve null pointer (fixes #456)</code><br>
+                        <code>docs: update installation guide (refs #789)</code>
                     </div>
                 </div>
             </section>
