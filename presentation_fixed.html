@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Workflow - Communication First</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/theme/white.min.css">
+    <style>
+        :root {
+            --primary-color: #0969da;
+            --secondary-color: #1f883d;
+            --danger-color: #d1242f;
+            --warning-color: #fb8500;
+            --dark: #24292f;
+            --light: #f6f8fa;
+        }
+
+        .reveal {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            font-size: 32px;
+        }
+
+        .reveal h1, .reveal h2, .reveal h3 {
+            color: var(--dark);
+            font-weight: 600;
+            text-transform: none;
+            line-height: 1.2;
+        }
+
+        .reveal h1 {
+            font-size: 2.2em;
+            color: var(--primary-color);
+            margin-bottom: 0.5em;
+        }
+
+        .reveal h2 {
+            font-size: 1.6em;
+            color: var(--dark);
+            border-bottom: 3px solid var(--primary-color);
+            padding-bottom: 0.3em;
+            margin-bottom: 0.8em;
+        }
+
+        .reveal h3 {
+            font-size: 1.3em;
+            margin-bottom: 0.5em;
+        }
+
+        .reveal .slides section {
+            text-align: left;
+            height: 100%;
+            padding: 20px;
+        }
+
+        .reveal .slides section.center {
+            text-align: center;
+        }
+
+        .reveal p, .reveal li {
+            font-size: 0.85em;
+            line-height: 1.4;
+            margin-bottom: 0.5em;
+        }
+
+        .title-slide {
+            text-align: center;
+        }
+
+        .title-slide h1 {
+            font-size: 2.5em;
+            margin-bottom: 0.3em;
+        }
+
+        .title-slide h3 {
+            color: var(--secondary-color);
+            font-size: 1.2em;
+            font-weight: 400;
+            margin-bottom: 0.5em;
+        }
+
+        .agenda-item {
+            background: var(--light);
+            padding: 12px 20px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+            font-size: 0.9em;
+        }
+
+        .agenda-item strong {
+            color: var(--primary-color);
+            font-size: 1.1em;
+        }
+
+        .challenge-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+            font-size: 0.8em;
+        }
+
+        .challenge-card {
+            background: white;
+            border-left: 4px solid var(--danger-color);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .challenge-card h4 {
+            color: var(--danger-color);
+            margin: 0 0 10px 0;
+            font-size: 1em;
+        }
+
+        .challenge-card ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .challenge-card li {
+            font-size: 0.85em;
+            margin-bottom: 5px;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 20px;
+        }
+
+        .phase-box {
+            background: linear-gradient(135deg, var(--light) 0%, white 100%);
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid var(--primary-color);
+        }
+
+        .phase-box h3 {
+            color: var(--primary-color);
+            margin-top: 0;
+        }
+
+        .before-after {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+            font-size: 0.8em;
+        }
+
+        .before-card {
+            background: #ffebee;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid var(--danger-color);
+        }
+
+        .after-card {
+            background: #e8f5e9;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid var(--secondary-color);
+        }
+
+        .action-list {
+            background: var(--light);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .action-list h3 {
+            color: var(--primary-color);
+            margin-top: 0;
+        }
+
+        .action-item {
+            background: white;
+            padding: 10px 15px;
+            margin: 8px 0;
+            border-radius: 5px;
+            border-left: 3px solid var(--secondary-color);
+            font-size: 0.9em;
+        }
+
+        .timeline-item {
+            background: white;
+            padding: 15px 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .timeline-item h4 {
+            color: var(--primary-color);
+            margin: 0 0 8px 0;
+        }
+
+        .highlight {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .contact-info {
+            background: var(--light);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .reveal .progress {
+            height: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+            <!-- Slide 1: Title -->
+            <section class="title-slide">
+                <h1>🚀 GitHub Developer Workflow</h1>
+                <h3>Phase 1: Improve Team Communication</h3>
+                <div class="highlight">
+                    <p>💬 Better Collaboration | 📝 Clear Documentation | ⚡ Faster Decisions</p>
+                </div>
+                <p>Presented by: Amna & Hanzla</p>
+            </section>
+
+            <!-- Slide 2: Agenda -->
+            <section>
+                <h2>📋 Communication-First Agenda</h2>
+                <div class="agenda-item">
+                    <strong>🔴 Communication Pain Points</strong> (4 min)
+                </div>
+                <div class="agenda-item">
+                    <strong>💬 Phase 1: Improve Team Communication</strong> (8 min)
+                </div>
+                <div class="agenda-item">
+                    <strong>📝 Templates & Standards</strong> (6 min)
+                </div>
+                <div class="agenda-item">
+                    <strong>🎯 Quick Wins Demo</strong> (5 min)
+                </div>
+                <div class="agenda-item">
+                    <strong>📊 Phase 1 Implementation</strong> (4 min)
+                </div>
+                <div class="agenda-item">
+                    <strong>🚀 Phase 2 Vision (Future)</strong> (3 min)
+                </div>
+            </section>
+
+            <!-- Slide 3: Communication Challenges -->
+            <section>
+                <h2>💬 Communication Challenges</h2>
+                <div class="challenge-grid">
+                    <div class="challenge-card">
+                        <h4>🔧 Process Issues (40%)</h4>
+                        <ul>
+                            <li>Unclear requirements</li>
+                            <li>Missing PR context</li>
+                            <li>No standard templates</li>
+                        </ul>
+                    </div>
+                    <div class="challenge-card">
+                        <h4>👥 Team Issues (35%)</h4>
+                        <ul>
+                            <li>Knowledge silos</li>
+                            <li>Delayed feedback</li>
+                            <li>Inconsistent updates</li>
+                        </ul>
+                    </div>
+                    <div class="challenge-card">
+                        <h4>📋 Documentation (25%)</h4>
+                        <ul>
+                            <li>Outdated information</li>
+                            <li>Missing context</li>
+                            <li>No standard formats</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 4: Phase 1 Focus -->
+            <section>
+                <h2>💬 Phase 1: Communication First</h2>
+                <div class="phase-box">
+                    <h3>🎯 Why Communication First?</h3>
+                    <ul>
+                        <li>✅ Immediate impact on productivity</li>
+                        <li>✅ Low effort, high value</li>
+                        <li>✅ Foundation for future methodology</li>
+                        <li>✅ Everyone can contribute</li>
+                        <li>✅ Reduces confusion by 60%</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Slide 5: Better Issue Communication -->
+            <section>
+                <h2>📋 Better Issue Communication</h2>
+                <div class="before-after">
+                    <div class="before-card">
+                        <h4>❌ Before: Poor Communication</h4>
+                        <p><strong>Title:</strong> Bug<br>
+                        <strong>Description:</strong> It's broken</p>
+                        <p><strong>Result:</strong> Unclear scope, missing context, back-and-forth questions</p>
+                    </div>
+                    <div class="after-card">
+                        <h4>✅ After: Clear Communication</h4>
+                        <p><strong>Title:</strong> 🐛 Login Error on Mobile<br>
+                        <strong>Priority:</strong> High<br>
+                        <strong>Steps:</strong> 1. Open app 2. Enter credentials<br>
+                        <strong>Expected:</strong> Dashboard loads<br>
+                        <strong>Actual:</strong> 500 error</p>
+                        <p><strong>Result:</strong> Clear understanding, immediate action</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 6: Quick Wins -->
+            <section>
+                <h2>⚡ Phase 1 Quick Wins</h2>
+                <div class="action-list">
+                    <h3>Week 1 Implementation:</h3>
+                    <div class="action-item">📝 Deploy issue templates (1 hour setup)</div>
+                    <div class="action-item">✅ Add PR template (30 minutes)</div>
+                    <div class="action-item">🏷️ Create basic label set (15 labels max)</div>
+                    <div class="action-item">📋 Team training session (1 hour)</div>
+                    <div class="action-item">💬 Establish update rhythm</div>
+                </div>
+            </section>
+
+            <!-- Slide 7: Implementation Plan -->
+            <section>
+                <h2>📅 2-Week Implementation</h2>
+                <div class="timeline-item">
+                    <h4>Week 1: Foundation</h4>
+                    <p>✅ Templates | ✅ Labels | ✅ Training | ✅ First PRs</p>
+                </div>
+                <div class="timeline-item">
+                    <h4>Week 2: Adoption</h4>
+                    <p>📊 Measure usage | 🔄 Iterate | 💬 Feedback | 🎯 Refine</p>
+                </div>
+                <div class="highlight">
+                    <strong>Expected Results:</strong> 80% template usage, 30% faster resolution, clearer communication
+                </div>
+            </section>
+
+            <!-- Slide 8: Phase 2 Vision -->
+            <section>
+                <h2>🚀 Phase 2: Full Methodology</h2>
+                <div class="phase-box">
+                    <h3>After Phase 1 Success:</h3>
+                    <ul>
+                        <li>📊 GitHub Project Boards</li>
+                        <li>🤖 Automated workflows</li>
+                        <li>📈 Sprint planning</li>
+                        <li>🔄 CI/CD integration</li>
+                        <li>📋 Advanced analytics</li>
+                    </ul>
+                    <p style="color: var(--secondary-color); font-weight: bold; margin-top: 15px;">
+                        🎯 Timeline: After Phase 1 proves communication improvements
+                    </p>
+                </div>
+            </section>
+
+            <!-- Slide 9: Action Items -->
+            <section>
+                <h2>🎬 Start Phase 1 Today</h2>
+                <div class="action-list">
+                    <h3>This Week:</h3>
+                    <div class="action-item">☑️ Add issue template to one repo</div>
+                    <div class="action-item">☑️ Create basic label set</div>
+                    <div class="action-item">☑️ Add PR template</div>
+                    <div class="action-item">☑️ Team intro session (30 min)</div>
+                    <div class="action-item">☑️ Try on 2-3 issues</div>
+                </div>
+                <div class="contact-info">
+                    <p><strong>Resources:</strong><br>
+                    📦 github.com/hanzlahabib/github-workflow-demo</p>
+                </div>
+            </section>
+
+            <!-- Slide 10: Thank You -->
+            <section class="title-slide">
+                <h1>🙏 Thank You!</h1>
+                <div class="highlight">
+                    <h3>Ready to Improve Team Communication?</h3>
+                    <p>💬 Start Phase 1 This Week<br>
+                    📈 Measure the Impact<br>
+                    🚀 Prepare for Phase 2</p>
+                </div>
+                <p>Let's build better software, together.</p>
+            </section>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.min.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            controls: true,
+            progress: true,
+            center: false,
+            transition: 'slide',
+            backgroundTransition: 'fade',
+            width: 1600,
+            height: 900,
+            margin: 0.04,
+            minScale: 0.1,
+            maxScale: 3.0,
+            embedded: false,
+            overview: true,
+            touch: true,
+            loop: false,
+            rtl: false,
+            navigationMode: 'default',
+            shuffle: false,
+            fragments: true,
+            fragmentInURL: false,
+            disableLayout: false
+        });
+    </script>
+</body>
+</html>
