@@ -335,6 +335,15 @@
             -webkit-tap-highlight-color: transparent;
         }
 
+        /* Ensure code visibility in colored backgrounds */
+        code[style*="color: white"] {
+            color: white !important;
+            background: rgba(0,0,0,0.1);
+            padding: 2px 4px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+
         /* Copyright watermark */
         body::after {
             content: "© 2025 Hanzla & Amna - GitHub Workflow Best Practices";
