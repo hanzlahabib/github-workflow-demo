@@ -589,22 +589,31 @@ Screenshots: [Attached]
             <!-- Slide 10: PR Quality Gates -->
             <section>
                 <h2>✅ Automated PR Quality Gates</h2>
-                <div class="metric-card" style="max-width: 600px; margin: 0 auto;">
-                    <h3>🤖 PR Analysis Results</h3>
-                    <div style="text-align: left; padding: 20px;">
-                        <p>✅ Linting passed (ESLint, Prettier)</p>
-                        <p>✅ Tests passed (98% coverage)</p>
-                        <p>✅ Build successful</p>
-                        <p>✅ No console.logs detected</p>
-                        <p>✅ PR size: Small (45 lines)</p>
-                        <p>✅ Linked to issue #123</p>
-                        <p>✅ Description provided</p>
-                        <p>⏳ Security scan in progress...</p>
+                <div class="two-column" style="gap: 30px; margin-top: 20px;">
+                    <div class="metric-card">
+                        <h3>🤖 Automated Checks</h3>
+                        <div style="text-align: left; padding: 15px; font-size: 0.9em;">
+                            <p>✅ Linting passed (ESLint, Prettier)</p>
+                            <p>✅ Tests passed (98% coverage)</p>
+                            <p>✅ Build successful</p>
+                            <p>✅ No console.logs detected</p>
+                            <p>✅ PR size: Small (45 lines)</p>
+                        </div>
                     </div>
-                    <div style="background: #e8f5e9; padding: 15px; border-radius: 10px; margin-top: 20px;">
-                        <strong>📊 Review Priority: High</strong><br>
-                        <strong>⏱️ Estimated Review Time: 15 minutes</strong>
+                    <div class="metric-card">
+                        <h3>📋 Content Validation</h3>
+                        <div style="text-align: left; padding: 15px; font-size: 0.9em;">
+                            <p>✅ Linked to issue #123</p>
+                            <p>✅ Description provided</p>
+                            <p>✅ Screenshots attached</p>
+                            <p>⏳ Security scan in progress...</p>
+                            <p>👥 Reviewer assigned</p>
+                        </div>
                     </div>
+                </div>
+                <div style="background: #e8f5e9; padding: 15px; border-radius: 10px; margin-top: 20px; text-align: center;">
+                    <strong>📊 Review Priority: High</strong> | 
+                    <strong>⏱️ Estimated Review Time: 15 minutes</strong>
                 </div>
             </section>
 
