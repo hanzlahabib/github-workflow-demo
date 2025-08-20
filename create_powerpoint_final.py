@@ -438,8 +438,8 @@ def create_presentation():
     title.text_frame.paragraphs[0].font.bold = True
     
     subtitle = slide.placeholders[1]
-    subtitle.text = "Ready to Improve Team Communication?\n\n💬 Start Phase 1 This Week\n📈 Measure the Impact\n🚀 Prepare for Phase 2\n\nLet's build better software, together."
-    subtitle.text_frame.paragraphs[0].font.size = Pt(18)
+    subtitle.text = "Questions & Discussion\n\nLet's improve our team communication together.\n\nThank you for your attention!"
+    subtitle.text_frame.paragraphs[0].font.size = Pt(20)
     
     # Save the presentation
     prs.save('GitHub_Workflow_Communication_First.pptx')
