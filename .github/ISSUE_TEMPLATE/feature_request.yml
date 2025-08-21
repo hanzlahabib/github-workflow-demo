@@ -1,0 +1,90 @@
+name: "✨ Feature Request"
+description: Request a new feature or enhancement
+title: "[FEATURE] "
+labels: ["type: feature", "status: triage"]
+body:
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature?
+      options:
+        - High (Client requirement)
+        - Medium (Team productivity)
+        - Low (Nice to have)
+    validations:
+      required: true
+  
+  - type: textarea
+    id: problem_statement
+    attributes:
+      label: "🎯 Problem Statement"
+      description: What pain point does this solve?
+      placeholder: Describe the current problem or limitation that needs to be addressed
+    validations:
+      required: true
+  
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: "💡 Proposed Solution"
+      description: How should we fix it?
+      placeholder: Describe your proposed approach or implementation
+    validations:
+      required: true
+  
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "🔄 Alternatives"
+      description: What else was considered?
+      placeholder: List other approaches that were considered and why they weren't chosen
+  
+  - type: textarea
+    id: use_cases
+    attributes:
+      label: "🏢 Use Cases"
+      description: Who will benefit and how?
+      placeholder: |
+        - User type 1: Benefit description
+        - User type 2: Benefit description
+    validations:
+      required: true
+  
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: "✅ Acceptance Criteria"
+      description: Definition of done
+      placeholder: |
+        - [ ] Criteria 1
+        - [ ] Criteria 2
+        - [ ] Criteria 3
+    validations:
+      required: true
+  
+  - type: dropdown
+    id: effort_estimate
+    attributes:
+      label: "👥 Effort Estimate"
+      description: Size the work
+      options:
+        - XS (1-2 hours)
+        - S (0.5-1 day)
+        - M (2-3 days)
+        - L (1 week)
+        - XL (2+ weeks)
+    validations:
+      required: true
+  
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which part of the system?
+      options:
+        - Frontend
+        - Backend
+        - Database
+        - AI/ML
+        - Infrastructure
