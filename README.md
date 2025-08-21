@@ -8,15 +8,13 @@ A comprehensive repository demonstrating GitHub workflow best practices designed
 .github/
 ├── ISSUE_TEMPLATE/
 │   ├── bug_report.yml          # Bug report template
-│   ├── feature_request.yml     # Feature request template
-│   ├── task.yml               # Task template
-│   └── config.yml             # Issue template configuration
+│   └── feature_request.yml     # Feature request template
 ├── PULL_REQUEST_TEMPLATE.md   # PR template
-├── workflows/
-│   ├── pr-validation.yml      # PR validation checks
-│   ├── auto-assign-labels.yml # Auto-labeling workflow
-│   └── quality-gates.yml      # Quality gate enforcement
-└── labels.yml                 # Label taxonomy definition
+└── workflows/
+    ├── commit-author.yaml      # Commit validation
+    ├── pr-checks.yml          # PR quality checks  
+    ├── semantic.yaml          # Semantic versioning
+    └── web-test.yaml          # Web deployment tests
 ```
 
 ## 🏷️ Label Taxonomy
@@ -69,47 +67,44 @@ Our label system follows a hierarchical structure:
 ## 📝 Issue Templates
 
 ### Bug Report Template
-- Pre-submission checklist
-- Contact details
-- Problem description with priority and component selection
-- Steps to reproduce
-- Expected vs actual behavior
-- Environment details
-- Log output
-- Additional context
+**Required Fields:**
+- ✅ **Priority**: Critical/High/Medium/Low
+- ✅ **Component**: Frontend/Backend/API/Database/Infrastructure
+- ✅ **Environment**: Production/Staging/Dev
+- ✅ **Steps to Reproduce**: Detailed list
+- ✅ **Expected vs Actual**: Clear comparison
+- ✅ **Contact Info**: Optional Teams handle
+
+**Auto-Applied Labels:** `type: bug`, `status: triage`
 
 ### Feature Request Template
-- Pre-submission checklist
-- Priority and component selection
-- Problem statement
-- Proposed solution
-- Alternative solutions considered
-- Use cases and acceptance criteria
-- Effort estimation
-- Breaking change indication
+**Structured Format:**
+- 🎯 **Problem Statement**: What pain point does this solve?
+- 💡 **Proposed Solution**: How should we fix it?
+- 🔄 **Alternatives**: What else was considered?
+- 🏢 **Use Cases**: Who will benefit and how?
+- ✅ **Acceptance Criteria**: Definition of done
+- 👥 **Effort Estimate**: Size the work (XS/S/M/L/XL)
 
-### Task Template
-- Pre-submission checklist
-- Priority and development area selection
-- Task description and requirements
-- Acceptance criteria
-- Effort estimation
-- Dependencies tracking
+**Auto-Applied Labels:** `type: feature`, `status: triage`
 
 ## 🔄 Pull Request Template
 
-Comprehensive PR template including:
-- **Pre-review checklist** - Issue linking, self-review, code style, tests
-- **Change description** - Clear description and issue linking
-- **Change type** - Bug fix, feature, breaking change, etc.
-- **Priority and development area** - Categorization
-- **Testing coverage** - Unit, integration, manual testing
-- **Performance impact** - Assessment of performance changes
-- **Database changes** - Schema and migration tracking
-- **Deployment notes** - Special deployment requirements
-- **Reviewer guidelines** - Focus areas and estimated review time
-- **Breaking changes** - Documentation of breaking changes
-- **Post-merge tasks** - Follow-up actions
+### Comprehensive Checklist
+- 🔗 **Linked Issue**: Must reference issue #
+- 🔍 **Self Review**: Author checks own code
+- 🎨 **Code Style**: Linting compliance
+- 🧪 **Clean Code**: No debug statements
+- ⚙️ **Testing**: Adequate test coverage
+- 📝 **Documentation**: Updated as needed
+
+### Categorization System
+- 🐛 **Change Type**: Bug/Feature/Breaking/etc
+- ⚡ **Priority Level**: Low/Medium/High/Critical
+- 🏢 **Development Area**: FE/BE/API/Database/Infrastructure/Design/Testing
+- 📊 **Performance**: Impact assessment
+- 💾 **Database**: Schema changes noted
+- 🚀 **Deployment**: Special requirements
 
 ## 🚪 Quality Gates
 
