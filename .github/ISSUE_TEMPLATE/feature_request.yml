@@ -16,23 +16,66 @@ body:
       required: true
   
   - type: textarea
-    id: description
+    id: problem_statement
     attributes:
-      label: Feature Description
-      description: What do you want to achieve?
-      placeholder: As a [user type], I want to [action] so that [benefit]
+      label: "🎯 Problem Statement"
+      description: What pain point does this solve?
+      placeholder: Describe the current problem or limitation that needs to be addressed
     validations:
       required: true
   
   - type: textarea
-    id: acceptance
+    id: proposed_solution
     attributes:
-      label: Acceptance Criteria
-      description: How will we know this is complete?
+      label: "💡 Proposed Solution"
+      description: How should we fix it?
+      placeholder: Describe your proposed approach or implementation
+    validations:
+      required: true
+  
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "🔄 Alternatives"
+      description: What else was considered?
+      placeholder: List other approaches that were considered and why they weren't chosen
+  
+  - type: textarea
+    id: use_cases
+    attributes:
+      label: "🏢 Use Cases"
+      description: Who will benefit and how?
+      placeholder: |
+        - User type 1: Benefit description
+        - User type 2: Benefit description
+    validations:
+      required: true
+  
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: "✅ Acceptance Criteria"
+      description: Definition of done
       placeholder: |
         - [ ] Criteria 1
         - [ ] Criteria 2
         - [ ] Criteria 3
+    validations:
+      required: true
+  
+  - type: dropdown
+    id: effort_estimate
+    attributes:
+      label: "👥 Effort Estimate"
+      description: Size the work
+      options:
+        - XS (1-2 hours)
+        - S (0.5-1 day)
+        - M (2-3 days)
+        - L (1 week)
+        - XL (2+ weeks)
+    validations:
+      required: true
   
   - type: dropdown
     id: component
