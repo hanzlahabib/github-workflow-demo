@@ -1,6 +1,5 @@
 name: "🐛 Bug Report"
 description: Report a bug or issue
-title: "[BUG] "
 labels: ["type: bug", "status: triage"]
 body:
   - type: dropdown
@@ -69,5 +68,5 @@ body:
     id: contact
     attributes:
       label: Contact Info
-      description: Optional but helpful - email or Slack handle
-      placeholder: your.email@company.com or @slack-handle
+      description: Optional but helpful - email or Teams handle
+      placeholder: your.email@company.com or @teams-handle
