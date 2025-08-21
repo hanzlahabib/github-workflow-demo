@@ -4,22 +4,41 @@ title: "[BUG] "
 labels: ["type: bug", "status: triage"]
 body:
   - type: dropdown
-    id: severity
+    id: priority
     attributes:
-      label: Severity
+      label: Priority
+      description: How critical is this issue?
       options:
-        - Critical (System down)
-        - High (Feature broken)
-        - Medium (Partial issue)
-        - Low (Minor issue)
+        - Critical
+        - High
+        - Medium
+        - Low
     validations:
       required: true
   
-  - type: textarea
-    id: description
+  - type: dropdown
+    id: component
     attributes:
-      label: What's happening?
-      description: Clear description of the bug
+      label: Component
+      description: Which part of the system?
+      options:
+        - Frontend
+        - Backend
+        - API
+        - Database
+        - Infrastructure
+    validations:
+      required: true
+  
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      description: Where did this occur?
+      options:
+        - Production
+        - Staging
+        - Dev
     validations:
       required: true
   
@@ -27,6 +46,7 @@ body:
     id: steps
     attributes:
       label: Steps to Reproduce
+      description: Detailed list of steps
       value: |
         1. Go to...
         2. Click on...
@@ -35,20 +55,19 @@ body:
       required: true
   
   - type: textarea
-    id: expected
+    id: expected_actual
     attributes:
       label: Expected vs Actual
+      description: Clear comparison
       value: |
         **Expected:** What should happen
         **Actual:** What actually happens
     validations:
       required: true
   
-  - type: textarea
-    id: environment
+  - type: input
+    id: contact
     attributes:
-      label: Environment
-      placeholder: |
-        - Browser: Chrome 91
-        - OS: Windows 10
-        - Version: v2.1.0
+      label: Contact Info
+      description: Optional but helpful - email or Slack handle
+      placeholder: your.email@company.com or @slack-handle
