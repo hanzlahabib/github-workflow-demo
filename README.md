@@ -2,6 +2,9 @@
 
 A comprehensive repository demonstrating GitHub workflow best practices designed to improve team communication, streamline development processes, and ensure code quality through structured templates, intelligent labeling, and automated quality gates.
 
+## 🚀 Quick Start
+New to this workflow? Check out our [Quick Start Guide](QUICK_START.md) for a step-by-step implementation guide.
+
 ## 📋 Repository Structure
 
 ```
