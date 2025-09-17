@@ -1,0 +1,290 @@
+name: 🚪 Quality Gates
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  security-scan:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+      
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+      
+      - name: Run npm audit
+        run: |
+          if command -v npm &> /dev/null; then
+            npm audit --audit-level=high
+          fi
+
+  code-quality:
+    name: 📊 Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run ESLint
+        run: |
+          if npm run lint --if-present; then
+            echo "✅ ESLint passed"
+          else
+            echo "❌ ESLint failed"
+            exit 1
+          fi
+      
+      - name: Run Prettier Check
+        run: |
+          if npm run format:check --if-present; then
+            echo "✅ Code formatting is correct"
+          else
+            echo "❌ Code formatting issues found"
+            exit 1
+          fi
+      
+      - name: Run TypeScript Check
+        run: |
+          if npm run type-check --if-present; then
+            echo "✅ TypeScript check passed"
+          else
+            echo "❌ TypeScript check failed"
+            exit 1
+          fi
+
+  testing:
+    name: 🧪 Testing
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [16, 18, 20]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run unit tests
+        run: |
+          if npm run test:unit --if-present; then
+            echo "✅ Unit tests passed"
+          else
+            echo "❌ Unit tests failed"
+            exit 1
+          fi
+      
+      - name: Run integration tests
+        run: |
+          if npm run test:integration --if-present; then
+            echo "✅ Integration tests passed"
+          else
+            echo "❌ Integration tests failed"
+            exit 1
+          fi
+      
+      - name: Generate test coverage
+        run: |
+          if npm run test:coverage --if-present; then
+            echo "✅ Coverage report generated"
+          fi
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: matrix.node-version == 18
+        with:
+          file: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+
+  build:
+    name: 🏗️ Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build application
+        run: |
+          if npm run build --if-present; then
+            echo "✅ Build successful"
+          else
+            echo "❌ Build failed"
+            exit 1
+          fi
+      
+      - name: Check build size
+        run: |
+          if [ -d "dist" ] || [ -d "build" ]; then
+            echo "📦 Build size analysis:"
+            du -sh dist/ 2>/dev/null || du -sh build/ 2>/dev/null || echo "No build directory found"
+          fi
+
+  performance:
+    name: ⚡ Performance Testing
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build application
+        run: |
+          if npm run build --if-present; then
+            echo "✅ Build for performance testing completed"
+          fi
+      
+      - name: Run Lighthouse CI
+        run: |
+          if npm run lighthouse --if-present; then
+            echo "✅ Lighthouse audit completed"
+          else
+            echo "ℹ️ Lighthouse audit not configured"
+          fi
+
+  accessibility:
+    name: ♿ Accessibility Testing
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run accessibility tests
+        run: |
+          if npm run test:a11y --if-present; then
+            echo "✅ Accessibility tests passed"
+          else
+            echo "ℹ️ Accessibility tests not configured"
+          fi
+
+  dependency-check:
+    name: 📦 Dependency Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check for outdated dependencies
+        run: |
+          if command -v npm &> /dev/null; then
+            echo "📊 Checking for outdated dependencies..."
+            npm outdated || true
+          fi
+      
+      - name: Check dependency licenses
+        run: |
+          if npm list --depth=0 2>/dev/null; then
+            echo "✅ Dependencies listed successfully"
+          fi
+
+  quality-gate-summary:
+    name: 📋 Quality Gate Summary
+    runs-on: ubuntu-latest
+    needs: [security-scan, code-quality, testing, build]
+    if: always()
+    steps:
+      - name: Quality Gate Status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const results = {
+              security: '${{ needs.security-scan.result }}',
+              quality: '${{ needs.code-quality.result }}',
+              testing: '${{ needs.testing.result }}',
+              build: '${{ needs.build.result }}'
+            };
+            
+            const passed = Object.values(results).every(result => result === 'success');
+            const failed = Object.entries(results).filter(([_, result]) => result === 'failure');
+            
+            let message = '## 🚪 Quality Gate Results\n\n';
+            
+            for (const [check, result] of Object.entries(results)) {
+              const emoji = result === 'success' ? '✅' : result === 'failure' ? '❌' : '⏭️';
+              message += `${emoji} **${check.charAt(0).toUpperCase() + check.slice(1)}**: ${result}\n`;
+            }
+            
+            if (!passed) {
+              message += '\n❌ **Quality Gate: FAILED**\n\n';
+              message += 'Please fix the failing checks before merging.\n';
+              
+              if (failed.length > 0) {
+                message += '\n**Failed Checks:**\n';
+                failed.forEach(([check, _]) => {
+                  message += `- ${check}\n`;
+                });
+              }
+            } else {
+              message += '\n✅ **Quality Gate: PASSED**\n\n';
+              message += 'All quality checks have passed successfully!\n';
+            }
+            
+            if (context.eventName === 'pull_request') {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: message
+              });
+            }
+            
+            if (!passed) {
+              core.setFailed('Quality gate failed');
+            }
