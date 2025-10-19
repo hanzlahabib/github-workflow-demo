@@ -1,0 +1,216 @@
+# GitHub Labels Configuration
+# This file defines a comprehensive label taxonomy for repository management
+
+# Priority Labels
+- name: "priority: critical"
+  color: "d73a4a"
+  description: "Critical issues that need immediate attention"
+
+- name: "priority: high"
+  color: "ff6b35"
+  description: "High priority issues"
+
+- name: "priority: medium"
+  color: "fbca04"
+  description: "Medium priority issues"
+
+- name: "priority: low"
+  color: "0e8a16"
+  description: "Low priority issues"
+
+# Type Labels
+- name: "type: bug"
+  color: "d73a4a"
+  description: "Something isn't working"
+
+- name: "type: feature"
+  color: "0052cc"
+  description: "New feature or request"
+
+- name: "type: enhancement"
+  color: "a2eeef"
+  description: "Enhancement to existing functionality"
+
+- name: "type: documentation"
+  color: "0075ca"
+  description: "Improvements or additions to documentation"
+
+- name: "type: maintenance"
+  color: "fef2c0"
+  description: "Code maintenance, refactoring, or technical debt"
+
+- name: "type: security"
+  color: "b60205"
+  description: "Security-related issues"
+
+- name: "type: performance"
+  color: "ff9500"
+  description: "Performance improvements"
+
+# Status Labels
+- name: "status: triage"
+  color: "ededed"
+  description: "Needs triage and initial assessment"
+
+- name: "status: in-progress"
+  color: "ff9500"
+  description: "Currently being worked on"
+
+- name: "status: blocked"
+  color: "b60205"
+  description: "Blocked by external dependencies"
+
+- name: "status: ready-for-review"
+  color: "0052cc"
+  description: "Ready for code review"
+
+- name: "status: needs-feedback"
+  color: "fbca04"
+  description: "Waiting for feedback from stakeholders"
+
+- name: "status: on-hold"
+  color: "c5def5"
+  description: "Temporarily paused"
+
+# Size/Effort Labels
+- name: "size: xs"
+  color: "c2e0c6"
+  description: "Extra small effort (< 1 day)"
+
+- name: "size: s"
+  color: "c2e0c6"
+  description: "Small effort (1-2 days)"
+
+- name: "size: m"
+  color: "fef2c0"
+  description: "Medium effort (3-5 days)"
+
+- name: "size: l"
+  color: "ff9500"
+  description: "Large effort (1-2 weeks)"
+
+- name: "size: xl"
+  color: "d73a4a"
+  description: "Extra large effort (> 2 weeks)"
+
+# Component Labels
+- name: "component: frontend"
+  color: "1d76db"
+  description: "Frontend-related changes"
+
+- name: "component: backend"
+  color: "0e8a16"
+  description: "Backend-related changes"
+
+- name: "component: api"
+  color: "5319e7"
+  description: "API-related changes"
+
+- name: "component: database"
+  color: "b60205"
+  description: "Database-related changes"
+
+- name: "component: infrastructure"
+  color: "0052cc"
+  description: "Infrastructure and deployment"
+
+- name: "component: testing"
+  color: "1d76db"
+  description: "Testing-related changes"
+
+- name: "component: ci/cd"
+  color: "0e8a16"
+  description: "CI/CD pipeline changes"
+
+# Special Labels
+- name: "good first issue"
+  color: "7057ff"
+  description: "Good for newcomers"
+
+- name: "help wanted"
+  color: "008672"
+  description: "Extra attention is needed"
+
+- name: "breaking change"
+  color: "b60205"
+  description: "Introduces breaking changes"
+
+- name: "duplicate"
+  color: "cfd3d7"
+  description: "This issue or pull request already exists"
+
+- name: "invalid"
+  color: "e4e669"
+  description: "This doesn't seem right"
+
+- name: "wontfix"
+  color: "ffffff"
+  description: "This will not be worked on"
+
+- name: "dependencies"
+  color: "0366d6"
+  description: "Pull requests that update a dependency file"
+
+# Release Labels
+- name: "release: major"
+  color: "d73a4a"
+  description: "Major release (breaking changes)"
+
+- name: "release: minor"
+  color: "ff9500"
+  description: "Minor release (new features)"
+
+- name: "release: patch"
+  color: "0e8a16"
+  description: "Patch release (bug fixes)"
+
+# Epic and Story Labels
+- name: "epic"
+  color: "8B008B"
+  description: "Large body of work that can be broken down into stories"
+
+- name: "story"
+  color: "9932CC"
+  description: "User story or feature requirement"
+
+- name: "subtask"
+  color: "DDA0DD"
+  description: "Subtask of a larger story or feature"
+
+# Module Specific Labels
+- name: "module: drug-control"
+  color: "FF6347"
+  description: "Related to drug control module"
+
+- name: "module: consultation"
+  color: "32CD32"
+  description: "Related to consultation module"
+
+- name: "module: reporting"
+  color: "4169E1"
+  description: "Related to reporting and analytics"
+
+- name: "module: user-management"
+  color: "FF8C00"
+  description: "Related to user management and authentication"
+
+- name: "module: integration"
+  color: "20B2AA"
+  description: "Related to third-party integrations"
+
+# Sprint Labels
+- name: "sprint: 1"
+  color: "F0E68C"
+  description: "Sprint 1 items"
+
+- name: "sprint: 2"
+  color: "F0E68C"
+  description: "Sprint 2 items"
+
+- name: "sprint: 3"
+  color: "F0E68C"
+  description: "Sprint 3 items"
+
+- name: "sprint: backlog"
+  color: "D3D3D3"
+  description: "Items in product backlog"
