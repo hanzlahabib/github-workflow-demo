@@ -18,14 +18,9 @@ Closes #ISSUE_ID
 -
 
 ## Testing
-
-**Test Environment:**
-- [ ] Local development
-- [ ] Staging
-- [ ] Other: ___________
+<!-- Describe how to test your changes -->
 
 **How to Test:**
-<!-- Provide step-by-step instructions for reviewers to test your changes -->
 1.
 2.
 3.
