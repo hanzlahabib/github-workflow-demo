@@ -12,20 +12,15 @@ Closes #ISSUE_ID
 - [ ] Breaking change
 
 ## Changes Made
-List the main changes, additions, or deletions introduced by this PR:
+<!-- List the main changes, additions, or deletions introduced by this PR -->
 -
 -
 -
 
 ## Testing
-Describe how reviewers can test the changes:
+<!-- Describe how to test your changes -->
 
-**Test Environment:**
-- [ ] Local development
-- [ ] Staging
-- [ ] Other: ___________
-
-**Testing Steps:**
+**How to Test:**
 1.
 2.
 3.
