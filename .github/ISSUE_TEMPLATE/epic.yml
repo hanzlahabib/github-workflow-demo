@@ -1,0 +1,278 @@
+name: "🎯 Epic"
+description: "Large-scale business initiative spanning multiple months/quarters"
+title: "[EPIC] "
+labels: ["type: epic", "status: triage"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🎯 Epic Template
+
+        Use this template for large-scale business initiatives that span multiple months/quarters and contain multiple features.
+
+        **Hierarchy:** Epic → Features → Tasks
+
+  - type: checkboxes
+    id: pre-submission
+    attributes:
+      label: "Pre-submission Checklist"
+      description: "Verify before submitting"
+      options:
+        - label: "I have searched for duplicate or similar epics"
+          required: true
+        - label: "I have clearly defined the epic vision and scope"
+          required: true
+        - label: "I have identified key stakeholders"
+          required: true
+        - label: "I have outlined success criteria"
+          required: true
+
+  - type: dropdown
+    id: business-priority
+    attributes:
+      label: "Business Priority"
+      description: "How important is this epic for the business?"
+      options:
+        - "🔴 Critical - Strategic business priority"
+        - "🟠 High - Important for business goals"
+        - "🟡 Medium - Beneficial but not urgent"
+        - "🟢 Low - Nice to have"
+    validations:
+      required: true
+
+  - type: textarea
+    id: epic-vision
+    attributes:
+      label: "Epic Vision"
+      description: "What is the overall strategic goal this Epic contributes to?"
+      placeholder: |
+        Example: Transform our customer onboarding process to be fully digital, reducing onboarding time from days to minutes while improving user experience and compliance tracking.
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem-statement
+    attributes:
+      label: "Problem Statement"
+      description: "What problem(s) is this Epic solving?"
+      placeholder: |
+        Describe the current pain points, business challenges, or opportunities this Epic addresses.
+
+        Example:
+        - Current manual onboarding takes 3-5 days
+        - 40% of customers abandon during onboarding
+        - Compliance documentation is scattered and difficult to audit
+        - Support team spends 60% of time on onboarding issues
+    validations:
+      required: true
+
+  - type: textarea
+    id: success-criteria
+    attributes:
+      label: "Success Criteria"
+      description: "What measurable outcomes indicate this Epic has achieved its goals?"
+      placeholder: |
+        List specific, measurable criteria for success:
+
+        Example:
+        - [ ] Reduce average onboarding time to < 30 minutes
+        - [ ] Increase onboarding completion rate to > 85%
+        - [ ] Achieve 95% compliance documentation coverage
+        - [ ] Reduce onboarding support tickets by 70%
+        - [ ] User satisfaction score > 4.5/5
+    validations:
+      required: true
+
+  - type: textarea
+    id: target-users
+    attributes:
+      label: "Target Users / Personas"
+      description: "Who will benefit from this Epic?"
+      placeholder: |
+        Identify primary users and personas:
+
+        Example:
+        - **New Customers**: Individuals or businesses signing up for the first time
+        - **Support Staff**: Customer service team managing onboarding
+        - **Compliance Officers**: Team ensuring regulatory compliance
+        - **Sales Team**: Account managers facilitating enterprise onboarding
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: "Scope"
+      description: "What is in and out of scope for this Epic?"
+      placeholder: |
+        **In Scope:**
+        - Digital identity verification
+        - Automated document collection
+        - Compliance checklist automation
+        - Customer portal for onboarding status
+        - Support team dashboard
+
+        **Out of Scope:**
+        - Payment processing integration (separate epic)
+        - Mobile app development (future phase)
+        - Legacy system migration (separate initiative)
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-features
+    attributes:
+      label: "Expected Features / Deliverables"
+      description: "High-level description of features this Epic will deliver"
+      placeholder: |
+        List major features or deliverables:
+
+        1. **Digital Identity Verification System**
+           - ID document upload and verification
+           - Facial recognition integration
+           - KYC compliance checks
+
+        2. **Document Management Portal**
+           - Secure document upload
+           - Document status tracking
+           - Automated document validation
+
+        3. **Customer Onboarding Dashboard**
+           - Progress tracking
+           - Step-by-step guidance
+           - Real-time status updates
+
+        4. **Admin Management Console**
+           - Onboarding oversight
+           - Compliance monitoring
+           - Analytics and reporting
+    validations:
+      required: true
+
+  - type: input
+    id: estimated-timeline
+    attributes:
+      label: "Estimated Timeline"
+      description: "Rough estimate of completion time (e.g., Q2 2025, 6 months, 3 sprints)"
+      placeholder: "Q2 2025 (approximately 6 months)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: team-size
+    attributes:
+      label: "Team Size Required"
+      description: "Number of team members needed"
+      options:
+        - "1-2 developers"
+        - "3-5 developers"
+        - "6-10 developers"
+        - "10+ developers (cross-functional teams)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: "Dependencies & Blockers"
+      description: "What must be completed before or during this Epic?"
+      placeholder: |
+        List dependencies, prerequisites, and potential blockers:
+
+        **Dependencies:**
+        - Third-party KYC service integration
+        - Cloud storage infrastructure setup
+        - Compliance team approval and requirements
+        - Legal review of data handling processes
+
+        **Potential Blockers:**
+        - Pending regulatory approval for identity verification
+        - Budget allocation for external services
+        - Integration with legacy authentication system
+    validations:
+      required: false
+
+  - type: textarea
+    id: key-assumptions
+    attributes:
+      label: "Key Assumptions"
+      description: "Assumptions made during planning that could impact implementation"
+      placeholder: |
+        List critical assumptions:
+
+        - We assume the third-party KYC API can handle our projected volume
+        - We assume current infrastructure can support increased storage needs
+        - We assume regulatory requirements won't change significantly during development
+        - We assume customer adoption will be gradual, allowing for iterative improvements
+    validations:
+      required: false
+
+  - type: textarea
+    id: risks
+    attributes:
+      label: "Risks & Mitigation"
+      description: "Potential risks and mitigation strategies"
+      placeholder: |
+        Identify risks and how to address them:
+
+        **Technical Risks:**
+        - Risk: Third-party API downtime
+          Mitigation: Implement fallback manual verification process
+
+        **Business Risks:**
+        - Risk: Low customer adoption
+          Mitigation: Phased rollout with extensive user testing and feedback loops
+
+        **Compliance Risks:**
+        - Risk: Regulatory changes during development
+          Mitigation: Regular legal review checkpoints and flexible architecture
+    validations:
+      required: false
+
+  - type: textarea
+    id: stakeholders
+    attributes:
+      label: "Key Stakeholders"
+      description: "Who needs to be involved or informed?"
+      placeholder: |
+        List stakeholders and their roles:
+
+        - **Product Owner**: @username - Overall direction and prioritization
+        - **Engineering Lead**: @username - Technical architecture and feasibility
+        - **Compliance Officer**: @username - Regulatory requirements
+        - **UX Designer**: @username - User experience and design
+        - **Legal Team**: @username - Legal review and approval
+        - **Customer Success**: @username - Customer impact assessment
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: "Additional Context"
+      description: "Any other relevant information"
+      placeholder: |
+        - Links to research or documentation
+        - Competitive analysis
+        - Market trends
+        - Customer feedback
+        - Technical constraints
+        - Budget considerations
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        ## Next Steps
+
+        After creating this Epic:
+        1. Create child Feature issues for each major deliverable
+        2. Link Features to this Epic using `Part of #[epic-number]`
+        3. Add Epic to project board
+        4. Schedule kickoff meeting with stakeholders
+        5. Break down Features into Tasks as planning progresses
+
+        **Need help?** Check the [GitHub Workflow Guide](../../GITHUB_WORKFLOW_GUIDE.md) or contact @Hanzla or @Amna
