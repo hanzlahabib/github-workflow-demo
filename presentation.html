@@ -554,63 +554,113 @@
                 </div>
             </section>
 
-            <!-- Slide 8: Issue Templates -->
+            <!-- Slide: Issue Hierarchy Diagram -->
             <section>
-                <h2>📋 Smart Issue Templates</h2>
-                <div class="before-after" style="width: 95%; margin: 30px auto;">
-                    <div class="before-card fragment">
-                        <h4>❌ Without Templates</h4>
-                        <pre style="font-size: 0.7em; padding: 20px; margin: 10px 0; background: rgba(255,255,255,0.7); border-radius: 5px; line-height: 1.4;">
-Title: Bug
-Description: It's broken
-                        </pre>
+                <h2>📊 Issue Hierarchy</h2>
+                <div style="width: 75%; margin: 70px auto; font-size: 0.9em;">
+                    <!-- Epic Level -->
+                    <div class="fragment" style="background: linear-gradient(to right, #e3f2fd, #f6f8fa); border-left: 5px solid var(--primary-color); padding: 12px 18px; border-radius: 8px; margin-bottom: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
+                        <div style="display: flex; align-items: center;">
+                            <span style="font-size: 1.4em; margin-right: 12px;">🎯</span>
+                            <div>
+                                <strong style="font-size: 1em; color: var(--primary-color); margin-right: 10px;">Epic</strong>
+                                <span style="color: #555; font-size: 0.9em;">Authentication System</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="after-card fragment">
-                        <h4>✅ With Templates</h4>
-                        <pre style="font-size: 0.7em; padding: 20px; margin: 10px 0; background: rgba(255,255,255,0.7); border-radius: 5px; line-height: 1.4;">
-🐛 Bug Report
-━━━━━━━━━━━━━━━━━━━━━━━━━
-Priority: 🔴 Critical
-Component: Authentication
-Environment: Production
-Steps to Reproduce: [Detailed]
-Expected: User logs in successfully
-Actual: 500 error returned
-Screenshots: [Attached]
-Impact: Blocks all user access
-                        </pre>
+
+                    <!-- Feature Level -->
+                    <div class="fragment" style="margin-left: 35px; background: linear-gradient(to right, #e8f5e9, #f6f8fa); border-left: 5px solid var(--secondary-color); padding: 10px 16px; border-radius: 8px; margin-bottom: 6px; position: relative; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+                        <div style="position: absolute; left: -25px; top: 50%; width: 25px; height: 2px; background: linear-gradient(to right, #ccc, var(--secondary-color));"></div>
+                        <div style="position: absolute; left: -25px; top: 50%; width: 6px; height: 6px; background: var(--secondary-color); border-radius: 50%; transform: translate(-50%, -50%);"></div>
+                        <div style="display: flex; align-items: center;">
+                            <span style="font-size: 1.3em; margin-right: 10px;">✨</span>
+                            <div>
+                                <strong style="font-size: 0.95em; color: var(--secondary-color); margin-right: 10px;">Feature</strong>
+                                <span style="color: #555; font-size: 0.85em;">User Login</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Task 1 -->
+                    <div class="fragment" style="margin-left: 70px; background: linear-gradient(to right, #e3f2fd, #fafafa); border-left: 4px solid #0969da; padding: 8px 14px; border-radius: 6px; margin-bottom: 5px; position: relative; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                        <div style="position: absolute; left: -25px; top: 50%; width: 25px; height: 2px; background: linear-gradient(to right, #ccc, #0969da);"></div>
+                        <div style="position: absolute; left: -25px; top: 50%; width: 5px; height: 5px; background: #0969da; border-radius: 50%; transform: translate(-50%, -50%);"></div>
+                        <div style="display: flex; align-items: center;">
+                            <span style="font-size: 1.2em; margin-right: 8px;">📝</span>
+                            <div>
+                                <strong style="font-size: 0.9em; color: #0969da; margin-right: 8px;">Task</strong>
+                                <span style="color: #555; font-size: 0.8em;">Login API Endpoint</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bug 1 under Task 1 -->
+                    <div class="fragment" style="margin-left: 105px; background: linear-gradient(to right, #ffebee, #fff5f5); border-left: 3px solid var(--danger-color); padding: 6px 12px; border-radius: 6px; margin-bottom: 4px; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                        <div style="position: absolute; left: -20px; top: 50%; width: 20px; height: 1px; background: linear-gradient(to right, #ddd, var(--danger-color));"></div>
+                        <div style="position: absolute; left: -20px; top: 50%; width: 4px; height: 4px; background: var(--danger-color); border-radius: 50%; transform: translate(-50%, -50%);"></div>
+                        <div style="display: flex; align-items: center;">
+                            <span style="font-size: 1em; margin-right: 8px;">🐛</span>
+                            <div>
+                                <strong style="font-size: 0.85em; color: var(--danger-color); margin-right: 8px;">Bug</strong>
+                                <span style="color: #666; font-size: 0.75em;">Fix null pointer in login</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bug 2 under Task 1 -->
+                    <div class="fragment" style="margin-left: 105px; background: linear-gradient(to right, #ffebee, #fff5f5); border-left: 3px solid var(--danger-color); padding: 6px 12px; border-radius: 6px; margin-bottom: 6px; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                        <div style="position: absolute; left: -20px; top: 50%; width: 20px; height: 1px; background: linear-gradient(to right, #ddd, var(--danger-color));"></div>
+                        <div style="position: absolute; left: -20px; top: 50%; width: 4px; height: 4px; background: var(--danger-color); border-radius: 50%; transform: translate(-50%, -50%);"></div>
+                        <div style="display: flex; align-items: center;">
+                            <span style="font-size: 1em; margin-right: 8px;">🐛</span>
+                            <div>
+                                <strong style="font-size: 0.85em; color: var(--danger-color); margin-right: 8px;">Bug</strong>
+                                <span style="color: #666; font-size: 0.75em;">Fix session timeout issue</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Task 2 -->
+                    <div class="fragment" style="margin-left: 70px; background: linear-gradient(to right, #e3f2fd, #fafafa); border-left: 4px solid #0969da; padding: 8px 14px; border-radius: 6px; position: relative; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                        <div style="position: absolute; left: -25px; top: 50%; width: 25px; height: 2px; background: linear-gradient(to right, #ccc, #0969da);"></div>
+                        <div style="position: absolute; left: -25px; top: 50%; width: 5px; height: 5px; background: #0969da; border-radius: 50%; transform: translate(-50%, -50%);"></div>
+                        <div style="display: flex; align-items: center;">
+                            <span style="font-size: 1.2em; margin-right: 8px;">📝</span>
+                            <div>
+                                <strong style="font-size: 0.9em; color: #0969da; margin-right: 8px;">Task</strong>
+                                <span style="color: #555; font-size: 0.8em;">Login UI Component</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            <!-- New Slide: Bug Report Template Detail -->
+            <!-- New Slide: Epic Template Detail -->
             <section>
-                <h2>🐛 Bug Report Template</h2>
+                <h2>🎯 Epic Template</h2>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 20px; width: 95%; margin: 20px auto;">
                     <div class="fragment" style="background: var(--light); padding: 25px; border-radius: 10px;">
                         <h4>Required Fields</h4>
                         <div style="font-size: 0.85em; line-height: 1.6;">
-                            <p>✅ <strong>Priority:</strong> Critical/High/Medium/Low</p>
-                            <p>✅ <strong>Component:</strong> Frontend/Backend/API/etc</p>
-                            <p>✅ <strong>Environment:</strong> Production/Staging/Dev</p>
-                            <p>✅ <strong>Steps to Reproduce:</strong> Detailed list</p>
-                            <p>✅ <strong>Expected vs Actual:</strong> Clear comparison</p>
-                            <p>✅ <strong>Screenshots:</strong> Visual evidence of issue</p>
-                            <p>✅ <strong>Contact Info:</strong> Optional but helpful</p>
+                            <p>✅ <strong>Pre-submission Checklist:</strong> Verify completeness</p>
+                            <p>🔴 <strong>Business Priority:</strong> High/Medium/Low</p>
+                            <p>🎯 <strong>Epic Vision:</strong> Strategic goal and purpose</p>
+                            <p>📋 <strong>Problem Statement:</strong> What problems solving?</p>
+                            <p>✅ <strong>Success Criteria:</strong> Measurable outcomes</p>
+                            <p>👥 <strong>Target Users/Personas:</strong> Who benefits?</p>
+                            <p>📊 <strong>Scope:</strong> In and out of scope</p>
                         </div>
                     </div>
                     <div class="fragment" style="background: var(--light); padding: 25px; border-radius: 10px;">
-                        <h4>Auto-Applied Labels</h4>
-                        <div style="margin: 15px 0;">
-                            <span class="label-badge label-type">type: bug</span>
-                            <span class="label-badge label-status">status: triage</span>
-                        </div>
-                        <h4>Benefits</h4>
+                        <h4>Planning & Execution</h4>
                         <div style="font-size: 0.85em; line-height: 1.6;">
-                            <p>✅ Complete bug information captured</p>
-                            <p>✅ Required fields validated</p>
-                            <p>✅ Auto-assigned to triage</p>
-                            <p>✅ Faster bug resolution</p>
+                            <p>✨ <strong>Expected Features:</strong> High-level deliverables</p>
+                            <p>📅 <strong>Estimated Timeline:</strong> Completion estimate</p>
+                            <p>👥 <strong>Team Size Required:</strong> Resources needed</p>
+                            <p>🔗 <strong>Dependencies & Blockers:</strong> Prerequisites</p>
+                            <p>💡 <strong>Key Assumptions:</strong> Planning assumptions</p>
+                            <p style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #e0e0e0; color: var(--primary-color); font-weight: bold;">📈 Large-scale initiatives spanning months/quarters</p>
                         </div>
                     </div>
                 </div>
@@ -618,31 +668,77 @@ Impact: Blocks all user access
 
             <!-- New Slide: Feature Request Template Detail -->
             <section>
-                <h2>✨ Feature Request Template</h2>
+                <h2>✨ Feature Template</h2>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 20px; width: 95%; margin: 20px auto;">
                     <div class="fragment" style="background: var(--light); padding: 25px; border-radius: 10px;">
-                        <h4>Structured Approach</h4>
+                        <h4>Feature Definition</h4>
                         <div style="font-size: 0.85em; line-height: 1.6;">
-                            <p>🎯 <strong>Problem Statement:</strong> What pain point does this solve?</p>
-                            <p>💡 <strong>Proposed Solution:</strong> How should we fix it?</p>
-                            <p>🔄 <strong>Alternatives:</strong> What else was considered?</p>
-                            <p>🏢 <strong>Use Cases:</strong> Who will benefit and how?</p>
-                            <p>✅ <strong>Acceptance Criteria:</strong> Definition of done</p>
-                            <p>👥 <strong>Effort Estimate:</strong> Size the work</p>
+                            <p>⚡ <strong>Priority:</strong> High/Medium/Low</p>
+                            <p>📋 <strong>Problem Statement:</strong> What problem does this solve?</p>
+                            <p>💡 <strong>Proposed Solution:</strong> Recommended approach</p>
+                            <p>🔄 <strong>Alternatives:</strong> Other solutions considered</p>
+                            <p>🏢 <strong>Use Cases:</strong> How users will interact</p>
                         </div>
                     </div>
                     <div class="fragment" style="background: var(--light); padding: 25px; border-radius: 10px;">
-                        <h4>Business Value</h4>
+                        <h4>Completion & Scope</h4>
                         <div style="font-size: 0.85em; line-height: 1.6;">
-                            <p>📈 Forces clear problem definition</p>
-                            <p>🎯 Ensures solution aligns with needs</p>
-                            <p>⏱️ Helps with estimation and planning</p>
-                            <p>📝 Reduces back-and-forth clarifications</p>
-                            <p>⚡ Faster development cycle</p>
+                            <p>✅ <strong>Acceptance Criteria:</strong> Definition of done</p>
+                            <p>⏱️ <strong>Effort Estimate:</strong> Time or story points</p>
+                            <p>🔧 <strong>Component:</strong> Module or system affected</p>
+                            <p style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #e0e0e0; color: var(--primary-color); font-weight: bold;">✨ User-facing capabilities and system components</p>
                         </div>
-                        <div style="margin-top: 15px;">
-                            <span class="label-badge label-type">type: feature</span>
-                            <span class="label-badge label-status">status: triage</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- New Slide: Task Template Detail -->
+            <section>
+                <h2>📝 Task Template</h2>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 20px; width: 95%; margin: 20px auto;">
+                    <div class="fragment" style="background: var(--light); padding: 25px; border-radius: 10px;">
+                        <h4>Task Details</h4>
+                        <div style="font-size: 0.85em; line-height: 1.6;">
+                            <p>📋 <strong>Checklist:</strong> Step-by-step sub-tasks</p>
+                            <p>⚡ <strong>Priority:</strong> High/Medium/Low</p>
+                            <p>💻 <strong>Development Area:</strong> Module/component</p>
+                            <p>📝 <strong>Task Description:</strong> Detailed explanation</p>
+                            <p>📋 <strong>Requirements:</strong> Technical specifications</p>
+                        </div>
+                    </div>
+                    <div class="fragment" style="background: var(--light); padding: 25px; border-radius: 10px;">
+                        <h4>Completion Criteria</h4>
+                        <div style="font-size: 0.85em; line-height: 1.6;">
+                            <p>✅ <strong>Acceptance Criteria:</strong> Definition of done</p>
+                            <p>⏱️ <strong>Estimated Effort:</strong> Time or story points</p>
+                            <p>🔗 <strong>Dependencies:</strong> Prerequisite tasks</p>
+                            <p>📎 <strong>Additional Context:</strong> Extra information</p>
+                            <p style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #e0e0e0; color: var(--primary-color); font-weight: bold;">📌 Specific development work items</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- New Slide: Bug Template Detail -->
+            <section>
+                <h2>🐛 Bug Template</h2>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 20px; width: 95%; margin: 20px auto;">
+                    <div class="fragment" style="background: var(--light); padding: 25px; border-radius: 10px;">
+                        <h4>Bug Details</h4>
+                        <div style="font-size: 0.85em; line-height: 1.6;">
+                            <p>📝 <strong>Description:</strong> Problem explanation</p>
+                            <p>🔁 <strong>Steps to Reproduce:</strong> Step-by-step</p>
+                            <p>⚖️ <strong>Expected vs Actual:</strong> Clear comparison</p>
+                            <p>👤 <strong>Contact Info:</strong> Person reporting</p>
+                        </div>
+                    </div>
+                    <div class="fragment" style="background: var(--light); padding: 25px; border-radius: 10px;">
+                        <h4>Classification</h4>
+                        <div style="font-size: 0.85em; line-height: 1.6;">
+                            <p>⚡ <strong>Priority:</strong> High/Medium/Low</p>
+                            <p>🔧 <strong>Component:</strong> System part affected</p>
+                            <p>🖥️ <strong>Environment:</strong> OS, browser, version</p>
+                            <p style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #e0e0e0; color: var(--primary-color); font-weight: bold;">🐛 Issues that need fixing in existing functionality</p>
                         </div>
                     </div>
                 </div>
@@ -818,8 +914,8 @@ Impact: Blocks all user access
                             <p>Start with 15-20 max</p>
                         </div>
                         <div class="checklist-item fragment">
-                            <strong>❌ Complex Templates</strong>
-                            <p>Keep it simple initially</p>
+                            <strong>❌ Skipping Template Fields</strong>
+                            <p>Fill all required fields completely</p>
                         </div>
                         <div class="checklist-item fragment">
                             <strong>❌ Forcing Everything</strong>
