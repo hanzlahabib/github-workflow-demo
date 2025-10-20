@@ -11,9 +11,23 @@ Closes #ISSUE_ID
 - [ ] Documentation
 - [ ] Breaking change
 
+## Changes Made
+<!-- List the main changes, additions, or deletions introduced by this PR -->
+-
+-
+-
+
 ## Testing
-- [ ] Tests pass locally
-- [ ] Manually tested
+<!-- Describe how to test your changes -->
+
+**How to Test:**
+1.
+2.
+3.
+
+**Test Results:**
+- [ ] All tests pass locally
+- [ ] Manually tested and verified
 
 ## Checklist
 - [ ] Code follows style guidelines
