@@ -627,6 +627,224 @@
             pointer-events: none;
             z-index: 9999;
         }
+
+        /* Hide default cursor */
+        body, .reveal, * {
+            cursor: none !important;
+        }
+
+        /* Cursor effects */
+        .cursor-dot {
+            width: 14px;
+            height: 14px;
+            background: var(--neon-blue);
+            border-radius: 50%;
+            position: fixed;
+            pointer-events: none;
+            z-index: 10000;
+            box-shadow:
+                0 0 10px var(--neon-blue),
+                0 0 20px var(--neon-blue),
+                0 0 40px var(--neon-blue),
+                0 0 80px var(--neon-blue);
+            transition: transform 0.15s ease;
+        }
+
+        .cursor-ring {
+            width: 60px;
+            height: 60px;
+            border: 3px solid var(--neon-pink);
+            border-radius: 50%;
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            transition: width 0.2s ease, height 0.2s ease, border-color 0.2s ease;
+            box-shadow:
+                0 0 15px var(--neon-pink),
+                0 0 30px var(--neon-pink),
+                0 0 60px var(--neon-pink),
+                inset 0 0 20px rgba(255, 0, 110, 0.2);
+            animation: breathe 2s ease-in-out infinite;
+        }
+
+        @keyframes breathe {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.15);
+                opacity: 0.8;
+            }
+        }
+
+        .cursor-trail {
+            width: 60px;
+            height: 60px;
+            border: 2px solid rgba(0, 243, 255, 0.3);
+            border-radius: 50%;
+            position: fixed;
+            pointer-events: none;
+            z-index: 9998;
+            animation: fadeOut 0.8s ease-out forwards;
+            box-shadow:
+                0 0 15px rgba(0, 243, 255, 0.4),
+                inset 0 0 15px rgba(0, 243, 255, 0.2);
+        }
+
+        @keyframes fadeOut {
+            to {
+                opacity: 0;
+                transform: scale(1.5);
+            }
+        }
+
+        /* Laser beam effect */
+        .laser-beam {
+            position: fixed;
+            width: 4px;
+            height: 100vh;
+            background: linear-gradient(180deg,
+                transparent 0%,
+                rgba(0, 243, 255, 0.2) 20%,
+                var(--neon-blue) 50%,
+                rgba(0, 243, 255, 0.2) 80%,
+                transparent 100%);
+            pointer-events: none;
+            z-index: 9997;
+            opacity: 0.5;
+            filter: blur(2px);
+            box-shadow:
+                0 0 10px var(--neon-blue),
+                0 0 20px var(--neon-blue);
+            transition: left 0.1s ease;
+        }
+
+        /* Outer glow ring */
+        .cursor-glow {
+            width: 100px;
+            height: 100px;
+            border: 1px solid rgba(0, 243, 255, 0.2);
+            border-radius: 50%;
+            position: fixed;
+            pointer-events: none;
+            z-index: 9998;
+            transition: width 0.3s ease, height 0.3s ease;
+            box-shadow:
+                0 0 30px rgba(0, 243, 255, 0.3),
+                inset 0 0 30px rgba(0, 243, 255, 0.1);
+            animation: pulse 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 0.5;
+            }
+            50% {
+                transform: scale(1.2);
+                opacity: 0.3;
+            }
+        }
+
+        /* Workflow animation styles - Looping */
+        .workflow-stage {
+            opacity: 0;
+            transform: translateY(20px);
+            animation: slideIn 0.5s ease forwards, fadeLoop 8s ease-in-out infinite;
+        }
+
+        @keyframes slideIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeLoop {
+            0%, 10%, 90%, 100% {
+                opacity: 1;
+            }
+            95% {
+                opacity: 0.3;
+            }
+        }
+
+        .workflow-arrow {
+            opacity: 0;
+            animation: arrowPulse 1s ease forwards, arrowLoop 8s ease-in-out infinite;
+        }
+
+        @keyframes arrowPulse {
+            0% {
+                opacity: 0;
+                transform: scale(0.5);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.2);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes arrowLoop {
+            0%, 15%, 85%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            90% {
+                opacity: 0;
+                transform: scale(0.5);
+            }
+        }
+
+        .commit-circle {
+            opacity: 0;
+            transform: scale(0);
+            animation: commitAppear 0.6s ease forwards, commitLoop 8s ease-in-out infinite;
+        }
+
+        @keyframes commitAppear {
+            0% {
+                opacity: 0;
+                transform: scale(0) rotate(0deg);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.3) rotate(180deg);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) rotate(360deg);
+            }
+        }
+
+        @keyframes commitLoop {
+            0%, 40%, 80%, 100% {
+                opacity: 1;
+                transform: scale(1) rotate(360deg);
+            }
+            85% {
+                opacity: 0;
+                transform: scale(0) rotate(0deg);
+            }
+        }
+
+        .command-card {
+            opacity: 0;
+            transform: translateX(-20px);
+            animation: slideInRight 0.4s ease forwards;
+        }
+
+        @keyframes slideInRight {
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
     </style>
 </head>
 <body>
@@ -641,6 +859,86 @@
                     <strong>Master Git</strong> |
                     <strong>Collaborate Better</strong> |
                     <strong>Code Confidently</strong>
+                </div>
+            </section>
+
+            <!-- Introduction & Getting Started -->
+            <section>
+                <h2>Welcome! Let's Get Started 👋</h2>
+                <div class="neon-card" style="margin-bottom: 20px;">
+                    <h3 style="color: var(--neon-blue);"><i class="fas fa-bullseye"></i> Today's Goal</h3>
+                    <p style="font-size: 1.2em;">Learn how to <strong style="color: var(--neon-green);">save your code</strong>, <strong style="color: var(--neon-pink);">track changes</strong>, and <strong style="color: var(--neon-yellow);">collaborate with teams</strong> using Git & GitHub</p>
+                </div>
+
+                <div class="grid-2">
+                    <div class="neon-card fragment">
+                        <h4 style="color: var(--neon-yellow);"><i class="fas fa-clock"></i> Duration</h4>
+                        <p style="font-size: 1.1em; margin: 0;">30-45 minutes</p>
+                    </div>
+                    <div class="neon-card fragment">
+                        <h4 style="color: var(--neon-pink);"><i class="fas fa-user-graduate"></i> Level</h4>
+                        <p style="font-size: 1.1em; margin: 0;">Complete Beginner</p>
+                    </div>
+                </div>
+
+                <div class="highlight-box fragment" style="margin-top: 25px; background: rgba(57, 255, 20, 0.1); border-left: 4px solid var(--neon-green);">
+                    <h3 style="color: var(--neon-green); margin-top: 0;"><i class="fas fa-rocket"></i> What You'll Learn</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: left;">
+                        <div class="fragment">
+                            <strong style="color: var(--neon-blue);">✓</strong> What is Git & Why use it?
+                        </div>
+                        <div class="fragment">
+                            <strong style="color: var(--neon-blue);">✓</strong> Basic Git commands
+                        </div>
+                        <div class="fragment">
+                            <strong style="color: var(--neon-blue);">✓</strong> Working with GitHub
+                        </div>
+                        <div class="fragment">
+                            <strong style="color: var(--neon-blue);">✓</strong> Branching & Collaboration
+                        </div>
+                        <div class="fragment">
+                            <strong style="color: var(--neon-blue);">✓</strong> Handling common scenarios
+                        </div>
+                        <div class="fragment">
+                            <strong style="color: var(--neon-blue);">✓</strong> Best practices
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Quick Setup Check -->
+            <section>
+                <h2><i class="fas fa-tools"></i> Before We Start</h2>
+                <div class="neon-card">
+                    <h3 style="color: var(--neon-yellow);">Do you have Git installed?</h3>
+                    <p style="font-size: 0.9em; color: #ccc;">Let's check quickly!</p>
+                </div>
+
+                <div class="grid-2" style="margin-top: 20px;">
+                    <div class="neon-card fragment" style="background: rgba(0, 243, 255, 0.1); border-left: 3px solid var(--neon-blue);">
+                        <h4 style="color: var(--neon-blue); margin-top: 0;"><i class="fab fa-windows"></i> Windows</h4>
+                        <code style="display: block; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px; color: var(--neon-green); margin-top: 10px;">git --version</code>
+                        <p style="font-size: 0.85em; margin-top: 10px; color: #aaa;">Run in Command Prompt or PowerShell</p>
+                    </div>
+
+                    <div class="neon-card fragment" style="background: rgba(57, 255, 20, 0.1); border-left: 3px solid var(--neon-green);">
+                        <h4 style="color: var(--neon-green); margin-top: 0;"><i class="fab fa-apple"></i> Mac / <i class="fab fa-linux"></i> Linux</h4>
+                        <code style="display: block; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px; color: var(--neon-green); margin-top: 10px;">git --version</code>
+                        <p style="font-size: 0.85em; margin-top: 10px; color: #aaa;">Run in Terminal</p>
+                    </div>
+                </div>
+
+                <div class="highlight-box fragment" style="margin-top: 25px; background: rgba(255, 0, 110, 0.1); border-left: 4px solid var(--neon-pink);">
+                    <p style="margin: 0;"><strong style="color: var(--neon-pink);">Don't have Git?</strong> No problem! Download from <a href="https://git-scm.com" style="color: var(--neon-blue);">git-scm.com</a></p>
+                </div>
+
+                <div class="neon-card fragment" style="margin-top: 20px; background: rgba(255, 234, 0, 0.05);">
+                    <h4 style="color: var(--neon-yellow); margin-top: 0;"><i class="fas fa-user-cog"></i> First Time Setup</h4>
+                    <div style="text-align: left; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 5px; margin-top: 10px;">
+                        <code style="display: block; color: var(--neon-green); margin-bottom: 8px;">git config --global user.name "Your Name"</code>
+                        <code style="display: block; color: var(--neon-green);">git config --global user.email "your.email@example.com"</code>
+                    </div>
+                    <p style="font-size: 0.85em; margin-top: 10px; color: #aaa;">This identifies you in commits - do this once!</p>
                 </div>
             </section>
 
@@ -831,7 +1129,7 @@ Commit #1: "Initial project setup"</pre>
 
             <!-- Branches -->
             <section>
-                <h2>3. Branch</h2>
+                <h2>Branch</h2>
                 <p style="font-size: 1.2em; color: var(--success-color);">A parallel version of your repository. Like a parallel universe for your code!</p>
                 <div class="branch-diagram">
                     <pre style="margin: 0;"><code><span class="branch-main">main branch:      A---B---C---D</span>
@@ -867,7 +1165,7 @@ Commit #1: "Initial project setup"</pre>
 
             <!-- Working Directory, Staging, Repository -->
             <section>
-                <h2>4. The Three States</h2>
+                <h2>The Three States</h2>
                 <div class="workflow-container">
                     <div class="workflow-step fragment">
                         <div class="step-number">1</div>
@@ -894,7 +1192,7 @@ Commit #1: "Initial project setup"</pre>
 
             <!-- Remote -->
             <section>
-                <h2>5. Remote</h2>
+                <h2>Remote</h2>
                 <div class="neon-card">
                     <p style="font-size: 1.2em; text-align: center;">A version of your repository hosted on the internet (like GitHub)</p>
                     <div class="grid-2" style="margin-top: 30px;">
@@ -1370,6 +1668,117 @@ sudo apt install git</pre>
                 </div>
             </section>
 
+            <!-- Complete Workflow Animation -->
+            <section>
+                <h2>Complete Git Workflow in Action</h2>
+
+                <!-- Commands First Row -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px;">
+                    <div class="command-card neon-card" style="padding: 10px; background: rgba(0, 243, 255, 0.1); border-left: 3px solid var(--neon-blue); animation-delay: 0.2s;">
+                        <h4 style="color: var(--neon-blue); margin: 0 0 5px 0; font-size: 0.9em;"><i class="fas fa-play"></i> 1. Init</h4>
+                        <code style="color: var(--neon-green); font-size: 0.85em;">git init</code>
+                    </div>
+
+                    <div class="command-card neon-card" style="padding: 10px; background: rgba(255, 234, 0, 0.1); border-left: 3px solid var(--neon-yellow); animation-delay: 0.4s;">
+                        <h4 style="color: var(--neon-yellow); margin: 0 0 5px 0; font-size: 0.9em;"><i class="fas fa-edit"></i> 2. Edit Files</h4>
+                        <code style="color: #e0e0e0; font-size: 0.75em;">create index.js</code>
+                    </div>
+
+                    <div class="command-card neon-card" style="padding: 10px; background: rgba(57, 255, 20, 0.1); border-left: 3px solid var(--neon-green); animation-delay: 1.6s;">
+                        <h4 style="color: var(--neon-green); margin: 0 0 5px 0; font-size: 0.9em;"><i class="fas fa-plus"></i> 3. Stage</h4>
+                        <code style="color: var(--neon-green); font-size: 0.85em;">git add .</code>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 25px;">
+                    <div class="command-card neon-card" style="padding: 10px; background: rgba(0, 243, 255, 0.1); border-left: 3px solid var(--neon-blue); animation-delay: 3.1s;">
+                        <h4 style="color: var(--neon-blue); margin: 0 0 5px 0; font-size: 0.9em;"><i class="fas fa-save"></i> 4. Commit</h4>
+                        <code style="color: var(--neon-blue); font-size: 0.85em;">git commit -m "..."</code>
+                    </div>
+
+                    <div class="command-card neon-card" style="padding: 10px; background: rgba(188, 19, 254, 0.1); border-left: 3px solid var(--neon-purple); animation-delay: 4.4s;">
+                        <h4 style="color: var(--neon-purple); margin: 0 0 5px 0; font-size: 0.9em;"><i class="fas fa-link"></i> 5. Remote</h4>
+                        <code style="color: var(--neon-purple); font-size: 0.75em;">git remote add origin</code>
+                    </div>
+
+                    <div class="command-card neon-card" style="padding: 10px; background: rgba(255, 0, 110, 0.1); border-left: 3px solid var(--neon-pink); animation-delay: 5.6s;">
+                        <h4 style="color: var(--neon-pink); margin: 0 0 5px 0; font-size: 0.9em;"><i class="fas fa-upload"></i> 6. Push</h4>
+                        <code style="color: var(--neon-pink); font-size: 0.85em;">git push -u origin main</code>
+                    </div>
+                </div>
+
+                <!-- Compact Visual Flow -->
+                <div style="display: flex; justify-content: center; align-items: center; gap: 15px;">
+                    <!-- Working Directory -->
+                    <div class="workflow-stage" style="animation-delay: 0s;">
+                        <div style="background: rgba(255, 234, 0, 0.2); padding: 15px; border-radius: 8px; border: 2px solid var(--neon-yellow); text-align: center; min-width: 140px;">
+                            <div style="color: var(--neon-yellow); font-size: 0.95em; font-weight: bold;">
+                                <i class="fas fa-folder-open"></i> Working
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="workflow-arrow" style="animation-delay: 0.8s;">
+                        <div style="font-size: 1.5em; color: var(--neon-green); text-shadow: 0 0 15px var(--neon-green);">→</div>
+                    </div>
+
+                    <!-- Staging -->
+                    <div class="workflow-stage" style="animation-delay: 1.5s;">
+                        <div style="background: rgba(57, 255, 20, 0.2); padding: 15px; border-radius: 8px; border: 2px solid var(--neon-green); text-align: center; min-width: 140px;">
+                            <div style="color: var(--neon-green); font-size: 0.95em; font-weight: bold;">
+                                <i class="fas fa-layer-group"></i> Staging
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="workflow-arrow" style="animation-delay: 2.3s;">
+                        <div style="font-size: 1.5em; color: var(--neon-blue); text-shadow: 0 0 15px var(--neon-blue);">→</div>
+                    </div>
+
+                    <!-- Local Repo -->
+                    <div class="workflow-stage" style="animation-delay: 3s;">
+                        <div style="background: rgba(0, 243, 255, 0.2); padding: 15px; border-radius: 8px; border: 2px solid var(--neon-blue); text-align: center; min-width: 140px;">
+                            <div style="color: var(--neon-blue); font-size: 0.95em; font-weight: bold; margin-bottom: 10px;">
+                                <i class="fas fa-database"></i> Local Repo
+                            </div>
+                            <div style="display: flex; gap: 8px; justify-content: center;">
+                                <div class="commit-circle" style="width: 30px; height: 30px; background: var(--neon-green); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #0a0e27; box-shadow: 0 0 15px var(--neon-green); font-size: 0.85em; animation-delay: 3.5s;">A</div>
+                                <div class="commit-circle" style="width: 30px; height: 30px; background: var(--neon-pink); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #0a0e27; box-shadow: 0 0 15px var(--neon-pink); font-size: 0.85em; animation-delay: 3.8s;">B</div>
+                                <div class="commit-circle" style="width: 30px; height: 30px; background: var(--neon-yellow); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #0a0e27; box-shadow: 0 0 15px var(--neon-yellow); font-size: 0.85em; animation-delay: 4.1s;">C</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="workflow-arrow" style="animation-delay: 4.8s;">
+                        <div style="font-size: 1.5em; color: var(--neon-pink); text-shadow: 0 0 15px var(--neon-pink);">→</div>
+                    </div>
+
+                    <!-- GitHub -->
+                    <div class="workflow-stage" style="animation-delay: 5.5s;">
+                        <div style="background: rgba(255, 0, 110, 0.2); padding: 15px; border-radius: 8px; border: 2px solid var(--neon-pink); text-align: center; min-width: 140px;">
+                            <div style="color: var(--neon-pink); font-size: 0.95em; font-weight: bold; margin-bottom: 10px;">
+                                <i class="fab fa-github"></i> GitHub
+                            </div>
+                            <div style="display: flex; gap: 8px; justify-content: center;">
+                                <div class="commit-circle" style="width: 30px; height: 30px; background: var(--neon-green); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #0a0e27; box-shadow: 0 0 15px var(--neon-green); font-size: 0.85em; animation-delay: 6s;">A</div>
+                                <div class="commit-circle" style="width: 30px; height: 30px; background: var(--neon-pink); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #0a0e27; box-shadow: 0 0 15px var(--neon-pink); font-size: 0.85em; animation-delay: 6.3s;">B</div>
+                                <div class="commit-circle" style="width: 30px; height: 30px; background: var(--neon-yellow); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #0a0e27; box-shadow: 0 0 15px var(--neon-yellow); font-size: 0.85em; animation-delay: 6.6s;">C</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Success Message -->
+                <div style="text-align: center; padding: 12px; background: rgba(57, 255, 20, 0.3); border-radius: 8px; border: 2px solid var(--neon-green); margin-top: 20px;">
+                    <span style="color: var(--neon-green); font-size: 1.2em; font-weight: bold;">
+                        ✓ Complete! Code is on GitHub
+                    </span>
+                </div>
+            </section>
+
             <!-- Common Scenarios -->
             <section>
                 <h2><span class="section-number">10</span> Common Scenarios & Solutions</h2>
@@ -1759,6 +2168,112 @@ Thumbs.db
             margin: 0.05,
             minScale: 0.15,
             maxScale: 2.5
+        });
+
+        // Cursor effects
+        const cursorDot = document.createElement('div');
+        cursorDot.className = 'cursor-dot';
+        document.body.appendChild(cursorDot);
+
+        const cursorRing = document.createElement('div');
+        cursorRing.className = 'cursor-ring';
+        document.body.appendChild(cursorRing);
+
+        const cursorGlow = document.createElement('div');
+        cursorGlow.className = 'cursor-glow';
+        document.body.appendChild(cursorGlow);
+
+        const laserBeam = document.createElement('div');
+        laserBeam.className = 'laser-beam';
+        document.body.appendChild(laserBeam);
+
+        let mouseX = 0, mouseY = 0;
+        let currentX = 0, currentY = 0;
+        let lastTrailTime = 0;
+
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        // Smooth cursor animation using requestAnimationFrame
+        function updateCursor() {
+            // Smooth interpolation for cursor position
+            const ease = 0.15;
+            currentX += (mouseX - currentX) * ease;
+            currentY += (mouseY - currentY) * ease;
+
+            // Update cursor dot position (instant)
+            cursorDot.style.left = (mouseX - 7) + 'px';
+            cursorDot.style.top = (mouseY - 7) + 'px';
+
+            // Update cursor ring position (smooth)
+            cursorRing.style.left = (currentX - 30) + 'px';
+            cursorRing.style.top = (currentY - 30) + 'px';
+
+            // Update cursor glow position (smoother)
+            cursorGlow.style.left = (currentX - 50) + 'px';
+            cursorGlow.style.top = (currentY - 50) + 'px';
+
+            // Update laser beam position
+            laserBeam.style.left = mouseX + 'px';
+
+            // Create trail effect - throttled
+            const now = Date.now();
+            if (now - lastTrailTime > 80) {
+                createTrail(currentX, currentY);
+                lastTrailTime = now;
+            }
+
+            requestAnimationFrame(updateCursor);
+        }
+
+        // Start the animation loop
+        updateCursor();
+
+        function createTrail(x, y) {
+            const trail = document.createElement('div');
+            trail.className = 'cursor-trail';
+            trail.style.left = (x - 30) + 'px';
+            trail.style.top = (y - 30) + 'px';
+            document.body.appendChild(trail);
+
+            setTimeout(() => {
+                trail.remove();
+            }, 800);
+        }
+
+        // Scale cursor ring on click
+        document.addEventListener('mousedown', () => {
+            cursorRing.style.transform = 'scale(0.8)';
+            cursorDot.style.transform = 'scale(1.5)';
+        });
+
+        document.addEventListener('mouseup', () => {
+            cursorRing.style.transform = 'scale(1)';
+            cursorDot.style.transform = 'scale(1)';
+        });
+
+        // Change cursor ring on hover over interactive elements
+        const interactiveElements = document.querySelectorAll('a, button, .neon-card, .icon-box, .tag, .workflow-step, .timeline-item');
+        interactiveElements.forEach(el => {
+            el.addEventListener('mouseenter', () => {
+                cursorRing.style.width = '80px';
+                cursorRing.style.height = '80px';
+                cursorRing.style.borderColor = 'var(--neon-yellow)';
+                cursorRing.style.boxShadow = '0 0 20px var(--neon-yellow), 0 0 40px var(--neon-yellow), 0 0 80px var(--neon-yellow)';
+                cursorGlow.style.width = '130px';
+                cursorGlow.style.height = '130px';
+            });
+
+            el.addEventListener('mouseleave', () => {
+                cursorRing.style.width = '60px';
+                cursorRing.style.height = '60px';
+                cursorRing.style.borderColor = 'var(--neon-pink)';
+                cursorRing.style.boxShadow = '0 0 15px var(--neon-pink), 0 0 30px var(--neon-pink), 0 0 60px var(--neon-pink), inset 0 0 20px rgba(255, 0, 110, 0.2)';
+                cursorGlow.style.width = '100px';
+                cursorGlow.style.height = '100px';
+            });
         });
     </script>
 </body>
