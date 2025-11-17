@@ -1,0 +1,1765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Basics: Your Journey into Version Control</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/theme/white.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #00f3ff;
+            --secondary-color: #39ff14;
+            --danger-color: #ff006e;
+            --warning-color: #ffea00;
+            --info-color: #00f3ff;
+            --success-color: #39ff14;
+            --dark: #0a0e27;
+            --light: #1a1f3a;
+            --neon-blue: #00f3ff;
+            --neon-pink: #ff006e;
+            --neon-green: #39ff14;
+            --neon-purple: #bc13fe;
+            --neon-yellow: #ffea00;
+        }
+
+        body {
+            background: #0a0e27;
+        }
+
+        .reveal {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            background: #0a0e27;
+        }
+
+        .reveal .slides {
+            background: #0a0e27;
+        }
+
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4 {
+            color: var(--neon-blue);
+            font-weight: 600;
+            text-transform: none;
+            text-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
+        }
+
+        .neon-card h3 {
+            color: var(--neon-blue);
+        }
+
+        .neon-card h4 {
+            color: var(--neon-blue);
+        }
+
+        .reveal h1 {
+            font-size: 2.5em;
+            color: var(--neon-blue);
+        }
+
+        .reveal h2 {
+            font-size: 1.8em;
+            color: var(--neon-blue);
+            border-bottom: 3px solid var(--neon-pink);
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+
+        .reveal p, .reveal li {
+            color: #e0e0e0;
+        }
+
+        .reveal ul, .reveal ol {
+            color: #e0e0e0;
+        }
+
+        .reveal code {
+            color: var(--neon-green);
+            background: rgba(57, 255, 20, 0.1);
+            padding: 3px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(57, 255, 20, 0.3);
+        }
+
+        .reveal .slides section {
+            text-align: left;
+        }
+
+        .reveal .slides section.center {
+            text-align: center;
+        }
+
+        .title-slide h1 {
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-pink), var(--neon-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 3em;
+            margin-bottom: 20px;
+            text-shadow: none;
+        }
+
+        .title-slide h3 {
+            color: var(--neon-green);
+            font-size: 1.5em;
+            font-weight: 400;
+            text-shadow: 0 0 15px rgba(57, 255, 20, 0.5);
+        }
+
+        .title-slide .metrics {
+            background: linear-gradient(135deg, rgba(26, 31, 58, 0.8) 0%, rgba(10, 14, 39, 0.9) 100%);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
+            border: 2px solid var(--neon-blue);
+            color: #e0e0e0;
+            font-size: 1.2em;
+        }
+
+        .emoji-large {
+            font-size: 2em;
+            margin: 0 10px;
+        }
+
+        .title-slide strong {
+            color: var(--neon-blue);
+        }
+
+        /* Section Number Badge */
+        .section-number {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            line-height: 40px;
+            text-align: center;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-pink));
+            color: white;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-right: 15px;
+            animation: subtleBounce 3s ease-in-out infinite;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
+        }
+
+        @keyframes subtleBounce {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-3px); }
+        }
+
+        /* Cards */
+        .neon-card {
+            background: rgba(26, 31, 58, 0.6);
+            border: 2px solid var(--neon-blue);
+            border-radius: 10px;
+            padding: 25px;
+            margin: 20px 0;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .neon-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 0 40px rgba(0, 243, 255, 0.4);
+            border-color: var(--neon-pink);
+        }
+
+        /* Grid Layouts */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 30px 0;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        /* Icon Box */
+        .icon-box {
+            background: rgba(26, 31, 58, 0.5);
+            border-radius: 10px;
+            padding: 25px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .icon-box:hover {
+            border-color: var(--neon-blue);
+            transform: translateY(-5px);
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.3);
+        }
+
+        .icon-box i {
+            font-size: 3em;
+            color: var(--neon-blue);
+            margin-bottom: 15px;
+        }
+
+        .icon-box h4 {
+            color: var(--neon-blue);
+            margin: 15px 0;
+        }
+
+        /* Terminal Style */
+        .terminal {
+            background: #1e1e1e;
+            border-radius: 10px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            margin: 20px 0;
+            border: 1px solid #333;
+        }
+
+        .timeline-item .terminal {
+            padding: 15px;
+            margin: 10px 0;
+        }
+
+        .terminal-header {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .terminal-button {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .terminal-button.red { background: #ff5f56; }
+        .terminal-button.yellow { background: #ffbd2e; }
+        .terminal-button.green { background: #27c93f; }
+
+        .terminal-content {
+            color: #39ff14;
+            font-size: 0.95em;
+            line-height: 1.6;
+        }
+
+        .terminal-prompt {
+            color: #00f3ff;
+        }
+
+        .terminal-output {
+            color: #888;
+            margin-left: 20px;
+        }
+
+        .terminal-comment {
+            color: #666;
+        }
+
+        /* VS Container */
+        .vs-container {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 30px;
+            align-items: center;
+            margin: 30px 0;
+        }
+
+        .vs-card {
+            background: rgba(26, 31, 58, 0.6);
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            border: 3px solid;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+        }
+
+        .vs-card.left {
+            border-color: var(--neon-blue);
+        }
+
+        .vs-card.right {
+            border-color: var(--neon-pink);
+        }
+
+        .vs-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 0 40px currentColor;
+        }
+
+        .vs-divider {
+            font-size: 2.5em;
+            color: var(--neon-purple);
+            font-weight: bold;
+            text-shadow: 0 0 20px var(--neon-purple);
+        }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding: 20px 0 20px 50px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--primary-color);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 15px;
+            padding: 12px 15px;
+            background: rgba(26, 31, 58, 0.6);
+            border-radius: 10px;
+            border-left: 4px solid var(--neon-blue);
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .timeline-item h3 {
+            font-size: 1.2em;
+            margin-bottom: 8px;
+        }
+
+        .timeline-item p {
+            font-size: 0.95em;
+            margin-bottom: 8px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -42px;
+            top: 20px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--neon-blue);
+            border: 3px solid #0a0e27;
+            box-shadow: 0 0 15px var(--neon-blue);
+        }
+
+        .timeline-item:hover {
+            transform: translateX(10px);
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.3);
+            border-left-color: var(--neon-pink);
+        }
+
+        .timeline-item:hover::before {
+            background: var(--neon-pink);
+            box-shadow: 0 0 20px var(--neon-pink);
+        }
+
+        /* Workflow Steps */
+        .workflow-container {
+            display: flex;
+            overflow-x: auto;
+            padding: 20px 0;
+            gap: 15px;
+        }
+
+        .workflow-step {
+            background: rgba(26, 31, 58, 0.6);
+            border: 2px solid var(--neon-blue);
+            border-radius: 10px;
+            padding: 20px;
+            min-width: 180px;
+            flex: 1;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .workflow-step:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.4);
+            border-color: var(--neon-pink);
+        }
+
+        .workflow-step::after {
+            content: '→';
+            position: absolute;
+            right: -30px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 2.5em;
+            color: var(--neon-green);
+            text-shadow: 0 0 20px var(--neon-green), 0 0 40px var(--neon-green);
+            z-index: 10;
+            font-weight: bold;
+        }
+
+        .workflow-step:last-child::after {
+            display: none;
+        }
+
+        .workflow-step .step-number {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            line-height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-pink));
+            color: white;
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
+        }
+
+        .workflow-step h4 {
+            color: var(--neon-blue);
+            margin: 10px 0;
+            font-size: 1.1em;
+        }
+
+        .workflow-step p {
+            color: #e0e0e0;
+        }
+
+        .workflow-step code {
+            color: var(--neon-green);
+            background: rgba(57, 255, 20, 0.15);
+            display: block;
+            padding: 8px;
+            margin-top: 10px;
+            font-size: 0.85em;
+        }
+
+        /* Tags */
+        .tag {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+            margin: 5px;
+            border: 2px solid;
+            transition: all 0.3s ease;
+        }
+
+        .tag:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px currentColor;
+        }
+
+        .tag-good {
+            background: rgba(57, 255, 20, 0.1);
+            color: var(--neon-green);
+            border-color: var(--neon-green);
+        }
+
+        .tag-bad {
+            background: rgba(255, 0, 110, 0.1);
+            color: var(--neon-pink);
+            border-color: var(--neon-pink);
+        }
+
+        .tag-info {
+            background: rgba(0, 243, 255, 0.1);
+            color: var(--neon-blue);
+            border-color: var(--neon-blue);
+        }
+
+        /* Screenshot Placeholder */
+        .screenshot-placeholder {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
+            border: 3px dashed var(--neon-purple);
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .screenshot-placeholder i {
+            font-size: 3em;
+            color: var(--neon-purple);
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .screenshot-placeholder p {
+            color: var(--neon-purple);
+            font-size: 1em;
+            font-weight: 600;
+        }
+
+        /* Checklist */
+        .checklist {
+            background: rgba(26, 31, 58, 0.4);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .checklist-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: rgba(0, 243, 255, 0.05);
+            border-radius: 5px;
+            border-left: 4px solid var(--neon-green);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checklist-item:hover {
+            transform: translateX(10px);
+            background: rgba(0, 243, 255, 0.1);
+            box-shadow: 0 0 20px rgba(57, 255, 20, 0.2);
+        }
+
+        .checklist-item i {
+            color: var(--neon-green);
+        }
+
+        .checklist-item span {
+            color: #e0e0e0;
+            font-size: 1em;
+        }
+
+        /* Table */
+        .neon-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin: 20px 0;
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .neon-table thead {
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+            color: white;
+        }
+
+        .neon-table th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .neon-table td {
+            padding: 15px;
+            background: rgba(26, 31, 58, 0.6);
+            border-bottom: 1px solid rgba(0, 243, 255, 0.1);
+            color: #e0e0e0;
+        }
+
+        .neon-table td code {
+            color: var(--neon-green);
+            background: rgba(57, 255, 20, 0.15);
+            font-weight: 600;
+        }
+
+        .neon-table tbody tr:hover {
+            background: rgba(0, 243, 255, 0.1);
+            transform: scale(1.01);
+        }
+
+        /* Branch Diagram */
+        .branch-diagram {
+            font-family: 'Courier New', monospace;
+            background: rgba(26, 31, 58, 0.6);
+            padding: 25px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 2px solid var(--neon-blue);
+        }
+
+        .branch-main { color: var(--neon-blue); }
+        .branch-feature { color: var(--neon-pink); }
+
+        /* Quote Box */
+        .quote-box {
+            background: rgba(26, 31, 58, 0.6);
+            border-left: 5px solid var(--neon-green);
+            padding: 20px 25px;
+            margin: 20px 0;
+            border-radius: 8px;
+            font-style: italic;
+            box-shadow: 0 0 20px rgba(57, 255, 20, 0.1);
+        }
+
+        /* Highlight Box */
+        .highlight-box {
+            background: linear-gradient(135deg, rgba(255, 234, 0, 0.1), rgba(255, 0, 110, 0.1));
+            border: 2px solid var(--neon-yellow);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 0 20px rgba(255, 234, 0, 0.2);
+        }
+
+        .highlight-box h3 {
+            color: var(--neon-yellow);
+            margin-top: 0;
+        }
+
+        .highlight-box p {
+            color: #e0e0e0;
+            font-size: 1.1em;
+        }
+
+        .highlight-box ul {
+            color: #e0e0e0;
+        }
+
+        /* Copyright watermark */
+        body::after {
+            content: "© 2025 Git Basics Training";
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 10px;
+            color: rgba(255,255,255,0.3);
+            pointer-events: none;
+            z-index: 9999;
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+            <!-- Title Slide -->
+            <section class="title-slide center">
+                <h1>🚀 Git Basics</h1>
+                <h3>Your Journey into Version Control</h3>
+                <div class="metrics">
+                    <span class="emoji-large">⏰</span>
+                    <strong>Master Git</strong> |
+                    <strong>Collaborate Better</strong> |
+                    <strong>Code Confidently</strong>
+                </div>
+            </section>
+
+            <!-- What is Git? -->
+            <section>
+                <h2><span class="section-number">1</span> What is Git?</h2>
+                <div class="neon-card">
+                    <h3><i class="fas fa-code-branch"></i> Definition</h3>
+                    <p><strong>Git</strong> is a <span style="color: var(--primary-color)">distributed version control system</span> that helps you:</p>
+                    <div class="checklist">
+                        <div class="checklist-item fragment">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Track changes in your code over time</span>
+                        </div>
+                        <div class="checklist-item fragment">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Collaborate with other developers seamlessly</span>
+                        </div>
+                        <div class="checklist-item fragment">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Experiment without breaking things</span>
+                        </div>
+                        <div class="checklist-item fragment">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Revert mistakes easily</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Git as Time Machine -->
+            <section>
+                <h2 class="fragment">Think of Git like a Time Machine! ⏰</h2>
+                <div class="quote-box fragment">
+                    <p style="font-size: 1.2em;">Imagine you're writing a story...</p>
+                </div>
+                <div class="grid-2">
+                    <div class="neon-card fragment" style="border-color: var(--danger-color);">
+                        <h3 style="color: var(--danger-color);"><i class="fas fa-times-circle"></i> Without Git</h3>
+                        <ul style="list-style: none; padding: 0;">
+                            <li class="fragment" style="padding: 8px 0;">📄 story_v1.txt</li>
+                            <li class="fragment" style="padding: 8px 0;">📄 story_v2.txt</li>
+                            <li class="fragment" style="padding: 8px 0;">📄 story_FINAL.txt</li>
+                            <li class="fragment" style="padding: 8px 0;">📄 story_FINAL_FINAL.txt</li>
+                            <li class="fragment" style="padding: 8px 0;">📄 story_FINAL_USE_THIS_ONE.txt</li>
+                        </ul>
+                    </div>
+                    <div class="neon-card fragment" style="border-color: var(--success-color);">
+                        <h3 style="color: var(--success-color);"><i class="fas fa-check-circle"></i> With Git</h3>
+                        <ul style="list-style: none; padding: 0;">
+                            <li class="fragment" style="padding: 10px 0; font-size: 1.5em;">📄 story.txt</li>
+                            <li class="fragment" style="padding: 10px 0; color: var(--success-color); margin-top: 20px;">✨ Git tracks every version automatically!</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Why Do We Need Git? -->
+            <section>
+                <h2><span class="section-number">2</span> Why Do We Need Git?</h2>
+                <div class="grid-3">
+                    <div class="icon-box fragment">
+                        <i class="fas fa-bug"></i>
+                        <h4>"My code worked yesterday!"</h4>
+                        <p style="font-size: 0.9em;">Git lets you go back to any previous version</p>
+                    </div>
+                    <div class="icon-box fragment">
+                        <i class="fas fa-user-secret"></i>
+                        <h4>"Who changed this line?"</h4>
+                        <p style="font-size: 0.9em;">Git shows who made what changes and when</p>
+                    </div>
+                    <div class="icon-box fragment">
+                        <i class="fas fa-users"></i>
+                        <h4>"How do we work on the same file?"</h4>
+                        <p style="font-size: 0.9em;">Git merges changes from multiple developers</p>
+                    </div>
+                    <div class="icon-box fragment">
+                        <i class="fas fa-flask"></i>
+                        <h4>"I want to try something risky"</h4>
+                        <p style="font-size: 0.9em;">Git branches let you experiment safely</p>
+                    </div>
+                    <div class="icon-box fragment">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <h4>"My laptop crashed!"</h4>
+                        <p style="font-size: 0.9em;">Git stores your code in multiple places</p>
+                    </div>
+                    <div class="icon-box fragment">
+                        <i class="fas fa-rocket"></i>
+                        <h4>Professional Workflow</h4>
+                        <p style="font-size: 0.9em;">Industry standard for version control</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Git vs GitHub -->
+            <section>
+                <h2><span class="section-number">3</span> Git vs GitHub</h2>
+                <h3 class="fragment" style="text-align: center; color: var(--warning-color);">This is NOT the same thing!</h3>
+                <div class="vs-container fragment">
+                    <div class="vs-card left">
+                        <i class="fab fa-git-alt" style="font-size: 4em; color: var(--primary-color); margin-bottom: 20px;"></i>
+                        <h3>Git</h3>
+                        <div class="tag tag-info">Software</div>
+                        <ul style="text-align: left; margin-top: 20px;">
+                            <li>Runs on your computer</li>
+                            <li>Tracks changes locally</li>
+                            <li>Works offline</li>
+                            <li>Free & open-source</li>
+                        </ul>
+                    </div>
+                    <div class="vs-divider">VS</div>
+                    <div class="vs-card right">
+                        <i class="fab fa-github" style="font-size: 4em; color: var(--danger-color); margin-bottom: 20px;"></i>
+                        <h3>GitHub</h3>
+                        <div class="tag tag-bad">Cloud Service</div>
+                        <ul style="text-align: left; margin-top: 20px;">
+                            <li>Runs on the internet</li>
+                            <li>Stores code online</li>
+                            <li>Requires internet</li>
+                            <li>Free with paid tiers</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="highlight-box fragment" style="margin-top: 30px;">
+                    <h3><i class="fas fa-lightbulb"></i> Think of it like Gaming</h3>
+                    <p class="fragment" style="font-size: 1.1em;"><strong style="color: var(--neon-blue);">Git</strong> = Save Game Feature <span style="color: #888;">(saves progress on your console)</span></p>
+                    <p class="fragment" style="font-size: 1.1em;"><strong style="color: var(--neon-pink);">GitHub</strong> = Cloud Save <span style="color: #888;">(backs up online, share with friends)</span></p>
+                </div>
+            </section>
+
+            <!-- Other Git Hosting Services -->
+            <section>
+                <h2>Other Git Hosting Services</h2>
+                <div class="grid-2">
+                    <div class="icon-box fragment">
+                        <i class="fab fa-gitlab" style="font-size: 3em; color: #fc6d26;"></i>
+                        <h4>GitLab</h4>
+                        <p>Full DevOps platform</p>
+                    </div>
+                    <div class="icon-box fragment">
+                        <i class="fab fa-bitbucket" style="font-size: 3em; color: #0052cc;"></i>
+                        <h4>Bitbucket</h4>
+                        <p>Atlassian's Git solution</p>
+                    </div>
+                    <div class="icon-box fragment">
+                        <i class="fas fa-server"></i>
+                        <h4>Gitea</h4>
+                        <p>Self-hosted Git service</p>
+                    </div>
+                    <div class="icon-box fragment">
+                        <i class="fab fa-microsoft"></i>
+                        <h4>Azure DevOps</h4>
+                        <p>Microsoft's platform</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Essential Git Concepts -->
+            <section>
+                <h2><span class="section-number">4</span> Essential Git Concepts</h2>
+                <div class="timeline">
+                    <div class="timeline-item fragment">
+                        <h3><i class="fas fa-folder"></i> 1. Repository (Repo)</h3>
+                        <p>A folder that Git is tracking. Contains all your files + Git's history.</p>
+                        <div class="terminal">
+                            <div class="terminal-content">
+                                <pre style="margin: 0; color: #39ff14;">my-project/
+├── .git/          ← Git's database (don't touch!)
+├── index.html
+├── style.css
+└── script.js</pre>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="timeline-item fragment">
+                        <h3><i class="fas fa-save"></i> 2. Commit</h3>
+                        <p>A snapshot of your project at a specific point in time.</p>
+                        <div class="terminal">
+                            <div class="terminal-content">
+                                <pre style="margin: 0; color: #39ff14;">Commit #3: "Add login feature"
+Commit #2: "Fix header styling"  ← You can go back here!
+Commit #1: "Initial project setup"</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Branches -->
+            <section>
+                <h2>3. Branch</h2>
+                <p style="font-size: 1.2em; color: var(--success-color);">A parallel version of your repository. Like a parallel universe for your code!</p>
+                <div class="branch-diagram">
+                    <pre style="margin: 0;"><code><span class="branch-main">main branch:      A---B---C---D</span>
+                       \
+<span class="branch-feature">feature branch:         E---F</span></code></pre>
+                </div>
+                <div class="neon-card fragment" style="margin-top: 20px;">
+                    <h3><i class="fas fa-info-circle"></i> Why Branches?</h3>
+                    <div class="grid-2">
+                        <div>
+                            <div class="checklist-item">
+                                <i class="fas fa-check"></i>
+                                <span>Work on features without breaking main code</span>
+                            </div>
+                            <div class="checklist-item">
+                                <i class="fas fa-check"></i>
+                                <span>Experiment safely</span>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="checklist-item">
+                                <i class="fas fa-check"></i>
+                                <span>Collaborate without conflicts</span>
+                            </div>
+                            <div class="checklist-item">
+                                <i class="fas fa-check"></i>
+                                <span>Organize different versions</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Working Directory, Staging, Repository -->
+            <section>
+                <h2>4. The Three States</h2>
+                <div class="workflow-container">
+                    <div class="workflow-step fragment">
+                        <div class="step-number">1</div>
+                        <h4>Working Directory</h4>
+                        <p>(Your files)</p>
+                        <i class="fas fa-file-code" style="font-size: 2.5em; color: var(--primary-color); margin-top: 15px;"></i>
+                    </div>
+                    <div class="workflow-step fragment">
+                        <div class="step-number">2</div>
+                        <h4>Staging Area</h4>
+                        <p>(Prepared files)</p>
+                        <i class="fas fa-box" style="font-size: 2.5em; color: var(--warning-color); margin-top: 15px;"></i>
+                        <code style="display: block; margin-top: 10px;">git add</code>
+                    </div>
+                    <div class="workflow-step fragment">
+                        <div class="step-number">3</div>
+                        <h4>Repository</h4>
+                        <p>(Committed history)</p>
+                        <i class="fas fa-database" style="font-size: 2.5em; color: var(--success-color); margin-top: 15px;"></i>
+                        <code style="display: block; margin-top: 10px;">git commit</code>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Remote -->
+            <section>
+                <h2>5. Remote</h2>
+                <div class="neon-card">
+                    <p style="font-size: 1.2em; text-align: center;">A version of your repository hosted on the internet (like GitHub)</p>
+                    <div class="grid-2" style="margin-top: 30px;">
+                        <div style="text-align: center;">
+                            <i class="fas fa-laptop-code" style="font-size: 5em; color: var(--primary-color);"></i>
+                            <h3 style="margin-top: 20px;">Local</h3>
+                            <p>Your Computer</p>
+                        </div>
+                        <div style="text-align: center;">
+                            <i class="fas fa-cloud" style="font-size: 5em; color: var(--danger-color);"></i>
+                            <h3 style="margin-top: 20px;">Remote</h3>
+                            <p>GitHub / GitLab</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Setting Up Git -->
+            <section>
+                <h2><span class="section-number">5</span> Setting Up Git</h2>
+                <div class="grid-3">
+                    <div class="neon-card fragment">
+                        <h3><i class="fab fa-linux"></i> Linux</h3>
+                        <div class="terminal">
+                            <div class="terminal-content">
+                                <pre style="margin: 0;">sudo apt update
+sudo apt install git</pre>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="neon-card fragment">
+                        <h3><i class="fab fa-apple"></i> macOS</h3>
+                        <div class="terminal">
+                            <div class="terminal-content">
+                                <pre style="margin: 0;">brew install git</pre>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="neon-card fragment">
+                        <h3><i class="fab fa-windows"></i> Windows</h3>
+                        <p style="text-align: center; padding: 20px;">Download from</p>
+                        <a href="https://git-scm.com" style="color: var(--primary-color); font-size: 1.2em;">git-scm.com</a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Configure Git -->
+            <section>
+                <h2>Configure Git</h2>
+                <div class="neon-card">
+                    <h3><i class="fas fa-user-cog"></i> Tell Git Who You Are</h3>
+                    <div class="terminal">
+                        <div class="terminal-header">
+                            <span class="terminal-button red"></span>
+                            <span class="terminal-button yellow"></span>
+                            <span class="terminal-button green"></span>
+                        </div>
+                        <div class="terminal-content">
+                            <div class="fragment"><span class="terminal-prompt">$</span> git config --global user.name "Your Name"</div>
+                            <div class="fragment"><span class="terminal-prompt">$</span> git config --global user.email "your.email@example.com"</div>
+                            <div class="fragment" style="margin-top: 20px;"><span class="terminal-prompt">$</span> git config --list</div>
+                            <div class="fragment terminal-output">user.name=Your Name</div>
+                            <div class="fragment terminal-output">user.email=your.email@example.com</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Your First Repository -->
+            <section>
+                <h2><span class="section-number">6</span> Your First Repository</h2>
+                <div class="neon-card fragment">
+                    <h3 style="color: var(--success-color);"><i class="fas fa-plus-circle"></i> Option A: Create New</h3>
+                    <div class="terminal">
+                        <div class="terminal-header">
+                            <span class="terminal-button red"></span>
+                            <span class="terminal-button yellow"></span>
+                            <span class="terminal-button green"></span>
+                        </div>
+                        <div class="terminal-content">
+                            <div class="fragment"><span class="terminal-prompt">$</span> cd my-project</div>
+                            <div class="fragment"><span class="terminal-prompt">$</span> git init</div>
+                            <div class="fragment terminal-output">Initialized empty Git repository</div>
+                            <div class="fragment" style="margin-top: 15px;"><span class="terminal-prompt">$</span> git status</div>
+                            <div class="fragment terminal-output">On branch main</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="neon-card fragment" style="margin-top: 20px;">
+                    <h3 style="color: var(--primary-color);"><i class="fas fa-download"></i> Option B: Clone Existing</h3>
+                    <div class="terminal">
+                        <div class="terminal-header">
+                            <span class="terminal-button red"></span>
+                            <span class="terminal-button yellow"></span>
+                            <span class="terminal-button green"></span>
+                        </div>
+                        <div class="terminal-content">
+                            <div class="fragment"><span class="terminal-prompt">$</span> git clone https://github.com/user/repo.git</div>
+                            <div class="fragment terminal-output">Cloning into 'repo'...</div>
+                            <div class="fragment terminal-output">done.</div>
+                            <div class="fragment" style="margin-top: 15px;"><span class="terminal-prompt">$</span> cd repo</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- The Git Workflow -->
+            <section>
+                <h2><span class="section-number">7</span> The Git Workflow</h2>
+                <div class="workflow-container" style="margin: 40px 0;">
+                    <div class="workflow-step fragment">
+                        <div class="step-number">1</div>
+                        <h4>MODIFY</h4>
+                        <p>Edit your files</p>
+                        <i class="fas fa-edit" style="font-size: 2em; color: var(--primary-color); margin-top: 10px;"></i>
+                    </div>
+                    <div class="workflow-step fragment">
+                        <div class="step-number">2</div>
+                        <h4>STAGE</h4>
+                        <p>git add</p>
+                        <i class="fas fa-plus" style="font-size: 2em; color: var(--warning-color); margin-top: 10px;"></i>
+                    </div>
+                    <div class="workflow-step fragment">
+                        <div class="step-number">3</div>
+                        <h4>COMMIT</h4>
+                        <p>git commit</p>
+                        <i class="fas fa-save" style="font-size: 2em; color: var(--success-color); margin-top: 10px;"></i>
+                    </div>
+                    <div class="workflow-step fragment">
+                        <div class="step-number">4</div>
+                        <h4>PUSH</h4>
+                        <p>git push</p>
+                        <i class="fas fa-upload" style="font-size: 2em; color: var(--danger-color); margin-top: 10px;"></i>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Git Workflow Commands -->
+            <section>
+                <h2>Step-by-Step Commands</h2>
+                <div class="timeline">
+                    <div class="timeline-item fragment">
+                        <h3>1. Check What's Changed</h3>
+                        <div class="terminal">
+                            <div class="terminal-content">
+                                <div class="fragment"><span class="terminal-prompt">$</span> git status</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="timeline-item fragment">
+                        <h3>2. Stage Files</h3>
+                        <div class="terminal">
+                            <div class="terminal-content">
+                                <div class="fragment"><span class="terminal-prompt">$</span> git add index.html</div>
+                                <div class="fragment"><span class="terminal-prompt">$</span> git add .</div>
+                                <div class="fragment"><span class="terminal-prompt">$</span> git add file1.txt file2.css</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="timeline-item fragment">
+                        <h3>3. Commit with Message</h3>
+                        <div class="terminal">
+                            <div class="terminal-content">
+                                <div class="fragment"><span class="terminal-prompt">$</span> git commit -m "Add homepage hero section"</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="timeline-item fragment">
+                        <h3>4. Push to Remote</h3>
+                        <div class="terminal">
+                            <div class="terminal-content">
+                                <div class="fragment"><span class="terminal-prompt">$</span> git push origin main</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Good vs Bad Commit Messages -->
+            <section>
+                <h2>Commit Messages Matter!</h2>
+                <div class="grid-2 fragment">
+                    <div class="neon-card" style="border-color: var(--success-color);">
+                        <h3 style="color: var(--success-color);"><i class="fas fa-check-circle"></i> Good Messages</h3>
+                        <div style="margin-top: 20px;">
+                            <div class="tag tag-good">Fix login button alignment</div>
+                            <div class="tag tag-good">Add user authentication feature</div>
+                            <div class="tag tag-good">Update README with installation steps</div>
+                        </div>
+                    </div>
+                    <div class="neon-card" style="border-color: var(--danger-color);">
+                        <h3 style="color: var(--danger-color);"><i class="fas fa-times-circle"></i> Bad Messages</h3>
+                        <div style="margin-top: 20px;">
+                            <div class="tag tag-bad">update</div>
+                            <div class="tag tag-bad">fix stuff</div>
+                            <div class="tag tag-bad">asdfgh</div>
+                            <div class="tag tag-bad">changes</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Git Status States -->
+            <section>
+                <h2>Understanding Git Status</h2>
+                <div class="timeline">
+                    <div class="timeline-item fragment" style="border-left-color: var(--danger-color);">
+                        <h3 style="color: var(--danger-color);"><i class="fas fa-question-circle"></i> Untracked Files (Red)</h3>
+                        <p>Files Git doesn't know about yet</p>
+                        <div class="terminal">
+                            <div class="terminal-content">
+                                <div class="fragment" style="color: #ff6b6b;">Untracked files:</div>
+                                <div class="fragment" style="color: #ff6b6b;">  newfile.txt</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="timeline-item fragment" style="border-left-color: var(--warning-color);">
+                        <h3 style="color: var(--warning-color);"><i class="fas fa-edit"></i> Modified Files (Red)</h3>
+                        <p>Files Git knows about, but changes aren't staged</p>
+                        <div class="terminal">
+                            <div class="terminal-content">
+                                <div class="fragment" style="color: #ff6b6b;">Changes not staged for commit:</div>
+                                <div class="fragment" style="color: #ff6b6b;">  modified: index.html</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="timeline-item fragment" style="border-left-color: var(--success-color);">
+                        <h3 style="color: var(--success-color);"><i class="fas fa-check-circle"></i> Staged Files (Green)</h3>
+                        <p>Files ready to be committed</p>
+                        <div class="terminal">
+                            <div class="terminal-content">
+                                <div class="fragment" style="color: #39ff14;">Changes to be committed:</div>
+                                <div class="fragment" style="color: #39ff14;">  modified: index.html</div>
+                                <div class="fragment" style="color: #39ff14;">  new file: style.css</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Branching & Merging -->
+            <section>
+                <h2><span class="section-number">8</span> Branching & Merging</h2>
+                <div class="highlight-box">
+                    <h3><i class="fas fa-lightbulb"></i> Common Branch Strategy</h3>
+                    <div class="branch-diagram" style="font-size: 1.1em;">
+                        <pre style="margin: 0;"><code><span class="branch-main" style="font-size: 1.15em;">main (production)</span>
+  <span style="color: var(--neon-green); text-shadow: 0 0 15px var(--neon-green); font-weight: bold;">├──</span> <span style="color: var(--neon-yellow); text-shadow: 0 0 15px var(--neon-yellow);">hotfix/critical-bug</span> <span style="color: #888;">← urgent fixes from main</span>
+  <span style="color: var(--neon-green); text-shadow: 0 0 15px var(--neon-green); font-weight: bold;">│</span>
+  <span style="color: var(--neon-green); text-shadow: 0 0 15px var(--neon-green); font-weight: bold;">└──</span> <span style="color: var(--neon-blue); text-shadow: 0 0 15px var(--neon-blue); font-size: 1.1em;">develop (latest features)</span>
+       <span style="color: var(--neon-green); text-shadow: 0 0 15px var(--neon-green); font-weight: bold;">├──</span> <span class="branch-feature">feature/login</span> <span style="color: #888;">← new login page</span>
+       <span style="color: var(--neon-green); text-shadow: 0 0 15px var(--neon-green); font-weight: bold;">├──</span> <span class="branch-feature">feature/payment</span> <span style="color: #888;">← payment integration</span>
+       <span style="color: var(--neon-green); text-shadow: 0 0 15px var(--neon-green); font-weight: bold;">├──</span> <span class="branch-feature">feature/dashboard</span> <span style="color: #888;">← user dashboard</span>
+       <span style="color: var(--neon-green); text-shadow: 0 0 15px var(--neon-green); font-weight: bold;">└──</span> <span class="branch-feature">feature/notifications</span> <span style="color: #888;">← push notifications</span></code></pre>
+                    </div>
+                    <div style="margin-top: 25px; padding: 15px; background: rgba(10, 14, 39, 0.6); border-radius: 8px; border-left: 4px solid var(--neon-blue);">
+                        <p style="color: #e0e0e0; margin: 0; line-height: 1.8;">
+                            <strong style="color: var(--neon-blue);">💡 Workflow:</strong>
+                            Features branch from <code style="color: var(--neon-blue);">develop</code> → merge back to <code style="color: var(--neon-blue);">develop</code> →
+                            when ready, <code style="color: var(--neon-blue);">develop</code> merges to <code style="color: var(--neon-green);">main</code>
+                            <br>
+                            <strong style="color: var(--neon-yellow);">⚡ Hotfixes:</strong>
+                            Branch from <code style="color: var(--neon-green);">main</code> → fix → merge back to both <code style="color: var(--neon-green);">main</code> AND <code style="color: var(--neon-blue);">develop</code>
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Branch Commands -->
+            <section>
+                <h2>Branch Commands</h2>
+                <div class="neon-card fragment">
+                    <h3><i class="fas fa-code-branch"></i> Creating & Switching</h3>
+                    <div class="terminal">
+                        <div class="terminal-content">
+                            <div class="fragment"><span class="terminal-prompt">$</span> git branch feature/new-feature</div>
+                            <div class="fragment"><span class="terminal-prompt">$</span> git checkout feature/new-feature</div>
+                            <div class="fragment" style="margin-top: 15px; color: #666;"># Shortcut:</div>
+                            <div class="fragment"><span class="terminal-prompt">$</span> git checkout -b feature/new-feature</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="neon-card fragment" style="margin-top: 20px;">
+                    <h3><i class="fas fa-list"></i> Listing & Deleting</h3>
+                    <div class="terminal">
+                        <div class="terminal-content">
+                            <div class="fragment"><span class="terminal-prompt">$</span> git branch</div>
+                            <div class="fragment terminal-output">* main</div>
+                            <div class="fragment terminal-output">  feature/login</div>
+                            <div class="fragment" style="margin-top: 15px;"><span class="terminal-prompt">$</span> git branch -d feature/old-feature</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Merging -->
+            <section>
+                <h2>Merging Branches</h2>
+                <div class="neon-card">
+                    <div class="terminal">
+                        <div class="terminal-header">
+                            <span class="terminal-button red"></span>
+                            <span class="terminal-button yellow"></span>
+                            <span class="terminal-button green"></span>
+                        </div>
+                        <div class="terminal-content">
+                            <div class="fragment terminal-comment"># Switch to the branch you want to merge INTO</div>
+                            <div class="fragment"><span class="terminal-prompt">$</span> git checkout main</div>
+                            <div class="fragment" style="margin-top: 15px;" class="terminal-comment"># Merge the feature branch</div>
+                            <div class="fragment"><span class="terminal-prompt">$</span> git merge feature/new-feature</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="branch-diagram fragment" style="margin-top: 30px;">
+                    <h3 class="fragment" style="color: var(--primary-color);">Before Merge:</h3>
+                    <pre class="fragment" style="margin: 10px 0;"><code><span class="branch-main">main:     A---B---C</span>
+               \
+<span class="branch-feature">feature:        D---E</span></code></pre>
+                    <h3 class="fragment" style="color: var(--success-color); margin-top: 20px;">After Merge:</h3>
+                    <pre class="fragment" style="margin: 10px 0;"><code><span class="branch-main">main:     A---B---C---F (merge commit)</span>
+               \       /
+<span class="branch-feature">feature:        D---E</span></code></pre>
+                </div>
+            </section>
+
+            <!-- Rebasing -->
+            <section>
+                <h2 style="margin-bottom: 15px;">Rebasing (Advanced)</h2>
+                <div class="neon-card fragment" style="padding: 12px; margin: 5px 0;">
+                    <h3 style="font-size: 1.2em; margin-bottom: 5px;"><i class="fas fa-code-branch"></i> What is Rebase?</h3>
+                    <p class="fragment" style="font-size: 0.95em; color: #e0e0e0; margin-bottom: 8px;">Rebase moves your commits to a new base commit, creating a <strong style="color: var(--neon-green);">clean linear history</strong></p>
+                    <div class="terminal fragment" style="padding: 10px; margin: 8px 0;">
+                        <div class="terminal-content">
+                            <div class="fragment"><span class="terminal-prompt">$</span> git checkout feature/new-feature</div>
+                            <div class="fragment"><span class="terminal-prompt">$</span> git rebase main</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="neon-card fragment" style="margin-top: 8px; padding: 12px; background: rgba(26, 31, 58, 0.8);">
+                    <h3 style="text-align: center; color: var(--neon-yellow); font-size: 1.3em; margin-bottom: 8px;">
+                        <i class="fas fa-exchange-alt"></i> Rebase Transformation
+                    </h3>
+                    <div class="branch-diagram" style="background: rgba(10, 14, 39, 0.8); padding: 12px; border: 2px solid var(--neon-blue);">
+                        <h4 class="fragment" style="color: var(--neon-pink); font-size: 1.1em; margin-bottom: 6px;">
+                            <i class="fas fa-arrow-down"></i> BEFORE Rebase:
+                        </h4>
+                        <pre class="fragment" style="margin: 6px 0; font-size: 1em;"><code><span class="branch-main" style="font-weight: bold;">main:     A---B---C---D</span>
+               <span style="color: var(--neon-yellow); font-weight: bold;">\</span>
+<span class="branch-feature" style="font-weight: bold;">feature:        E---F</span>  <span style="color: #888; font-size: 0.85em;">← original commits</span></code></pre>
+
+                        <div class="fragment" style="text-align: center; margin: 10px 0;">
+                            <span style="color: var(--neon-green); font-size: 1.5em; font-weight: bold;">⬇ git rebase main ⬇</span>
+                        </div>
+
+                        <h4 class="fragment" style="color: var(--neon-green); font-size: 1.1em; margin-bottom: 6px;">
+                            <i class="fas fa-check-circle"></i> AFTER Rebase:
+                        </h4>
+                        <pre class="fragment" style="margin: 6px 0; font-size: 1em;"><code><span class="branch-main" style="font-weight: bold;">main:     A---B---C---D</span>
+                           <span style="color: var(--neon-yellow); font-weight: bold;">\</span>
+<span class="branch-feature" style="font-weight: bold;">feature:                E'---F'</span>  <span style="color: var(--neon-green); font-size: 0.85em;">← NEW commits (same code, different IDs)</span></code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Rebase vs Merge -->
+            <section>
+                <h2 style="margin-bottom: 15px;">Rebase vs Merge - When to Use?</h2>
+                <div class="grid-2" style="margin-top: 15px;">
+                    <div class="neon-card" style="background: rgba(57, 255, 20, 0.1); border: 3px solid var(--neon-green); padding: 18px;">
+                        <h3 style="color: var(--neon-green); font-size: 1.3em; text-align: center; margin-bottom: 12px;">
+                            <i class="fas fa-check-circle"></i> Use Merge When:
+                        </h3>
+                        <ul style="font-size: 1.05em; line-height: 1.7; margin-top: 10px;">
+                            <li>Working on a <strong>shared branch</strong></li>
+                            <li>You want to <strong>preserve history</strong></li>
+                            <li><strong>Collaborating</strong> with others</li>
+                        </ul>
+                    </div>
+                    <div class="neon-card" style="background: rgba(0, 243, 255, 0.1); border: 3px solid var(--neon-blue); padding: 18px;">
+                        <h3 style="color: var(--neon-blue); font-size: 1.3em; text-align: center; margin-bottom: 12px;">
+                            <i class="fas fa-code-branch"></i> Use Rebase When:
+                        </h3>
+                        <ul style="font-size: 1.05em; line-height: 1.7; margin-top: 10px;">
+                            <li><strong>Cleaning up</strong> local commits</li>
+                            <li>Creating <strong>linear history</strong></li>
+                            <li><strong>Before pushing</strong> to remote</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="neon-card" style="background: rgba(255, 0, 110, 0.2); border: 4px solid var(--neon-pink); margin-top: 20px; padding: 18px;">
+                    <h3 style="color: var(--neon-pink); text-align: center; font-size: 1.3em; margin-bottom: 12px;">
+                        <i class="fas fa-exclamation-triangle"></i> Critical Rule: Don't Rebase Shared Code!
+                    </h3>
+                    <div style="background: rgba(10, 14, 39, 0.6); padding: 15px; border-radius: 8px; border-left: 5px solid var(--neon-pink);">
+                        <p style="color: #e0e0e0; font-size: 1.05em; margin-bottom: 10px; line-height: 1.6;">
+                            <strong style="color: var(--neon-pink);">✅ SAFE:</strong> Rebase commits that are <strong style="color: var(--neon-green);">only on your local machine</strong><br>
+                            <strong style="color: var(--neon-pink);">❌ DANGER:</strong> Rebase commits that you've <strong style="color: var(--neon-yellow);">already pushed</strong> where others can see them
+                        </p>
+                        <p style="color: var(--neon-yellow); font-size: 1em; text-align: center; margin: 10px 0 0 0; font-weight: bold; line-height: 1.5;">
+                            <i class="fas fa-info-circle"></i> Why? Rebase creates new commits with different IDs.<br>
+                            This breaks the history for teammates working on the same branch!
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Working with Remote Repositories -->
+            <section>
+                <h2><span class="section-number">9</span> Working with Remote Repositories</h2>
+                <div class="timeline">
+                    <div class="timeline-item fragment">
+                        <h3><i class="fas fa-link"></i> Adding a Remote</h3>
+                        <div class="terminal">
+                            <div class="terminal-content">
+                                <div class="fragment"><span class="terminal-prompt">$</span> git remote add origin https://github.com/username/repo.git</div>
+                                <div class="fragment"><span class="terminal-prompt">$</span> git remote -v</div>
+                                <div class="fragment terminal-output">origin  https://github.com/username/repo.git (fetch)</div>
+                                <div class="fragment terminal-output">origin  https://github.com/username/repo.git (push)</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="timeline-item fragment">
+                        <h3><i class="fas fa-upload"></i> Pushing Changes</h3>
+                        <div class="terminal">
+                            <div class="terminal-content">
+                                <div class="fragment"><span class="terminal-prompt">$</span> git push origin main</div>
+                                <div class="fragment"><span class="terminal-prompt">$</span> git push -u origin feature/new-feature</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="timeline-item fragment">
+                        <h3><i class="fas fa-download"></i> Pulling Changes</h3>
+                        <div class="terminal">
+                            <div class="terminal-content">
+                                <div class="fragment"><span class="terminal-prompt">$</span> git pull origin main</div>
+                                <div class="fragment"><span class="terminal-prompt">$</span> git fetch origin</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Push/Pull Flow -->
+            <section>
+                <h2>The Push/Pull Flow</h2>
+                <div class="grid-2" style="align-items: center; margin: 40px 0;">
+                    <div style="text-align: center;">
+                        <i class="fas fa-laptop-code" style="font-size: 5em; color: var(--neon-blue);"></i>
+                        <h3 style="margin-top: 20px; color: var(--neon-blue);">Your Computer</h3>
+                        <p style="color: var(--neon-green); font-size: 1.2em;">(local)</p>
+                    </div>
+                    <div style="text-align: center;">
+                        <i class="fab fa-github" style="font-size: 5em; color: var(--neon-pink);"></i>
+                        <h3 style="margin-top: 20px; color: var(--neon-pink);">GitHub</h3>
+                        <p style="color: var(--neon-green); font-size: 1.2em;">(remote)</p>
+                    </div>
+                </div>
+                <div class="neon-card" style="text-align: center;">
+                    <div style="font-size: 1.3em; margin: 20px 0;">
+                        <span style="color: var(--neon-blue);">git commit</span>
+                        <span style="color: var(--neon-green); margin: 0 20px; text-shadow: 0 0 15px var(--neon-green); font-weight: bold;">─────────────→</span>
+                        <span style="color: var(--neon-pink);">git push</span>
+                        <p style="font-size: 0.7em; margin-top: 10px; color: var(--neon-yellow);">upload</p>
+                    </div>
+                    <div style="font-size: 1.3em; margin: 30px 0 20px;">
+                        <span style="color: var(--neon-blue);">git pull</span>
+                        <span style="color: var(--neon-green); margin: 0 20px; text-shadow: 0 0 15px var(--neon-green); font-weight: bold;">←─────────────</span>
+                        <span style="color: var(--neon-pink);">changes</span>
+                        <p style="font-size: 0.7em; margin-top: 10px; color: var(--neon-yellow);">download</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Common Scenarios -->
+            <section>
+                <h2><span class="section-number">10</span> Common Scenarios & Solutions</h2>
+                <div class="grid-2">
+                    <div class="icon-box fragment">
+                        <i class="fas fa-undo" style="font-size: 3em; color: var(--neon-blue);"></i>
+                        <h4 style="color: var(--neon-blue);">Undo Last Commit</h4>
+                        <code style="color: var(--neon-green); background: rgba(57, 255, 20, 0.1); padding: 5px 10px; border-radius: 5px;">git commit --amend</code>
+                    </div>
+                    <div class="icon-box fragment">
+                        <i class="fas fa-eraser" style="font-size: 3em; color: var(--neon-pink);"></i>
+                        <h4 style="color: var(--neon-pink);">Discard Changes</h4>
+                        <code style="color: var(--neon-green); background: rgba(57, 255, 20, 0.1); padding: 5px 10px; border-radius: 5px;">git checkout -- file.txt</code>
+                    </div>
+                    <div class="icon-box fragment">
+                        <i class="fas fa-history" style="font-size: 3em; color: var(--neon-green);"></i>
+                        <h4 style="color: var(--neon-green);">View History</h4>
+                        <code style="color: var(--neon-green); background: rgba(57, 255, 20, 0.1); padding: 5px 10px; border-radius: 5px;">git log --oneline</code>
+                    </div>
+                    <div class="icon-box fragment">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 3em; color: var(--neon-yellow);"></i>
+                        <h4 style="color: var(--neon-yellow);">Merge Conflicts</h4>
+                        <code style="color: var(--neon-green); background: rgba(57, 255, 20, 0.1); padding: 5px 10px; border-radius: 5px;">Edit <span style="color: var(--neon-yellow); font-weight: bold;">→</span> git add <span style="color: var(--neon-yellow); font-weight: bold;">→</span> git commit</code>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Merge Conflicts -->
+            <section>
+                <h2>Handling Merge Conflicts</h2>
+                <div class="neon-card">
+                    <h3 style="color: var(--danger-color);"><i class="fas fa-exclamation-circle"></i> When you see a conflict:</h3>
+                    <div class="terminal">
+                        <div class="terminal-content">
+                            <div style="color: #ff6b6b;">CONFLICT (content): Merge conflict in index.html</div>
+                        </div>
+                    </div>
+                    <div class="branch-diagram" style="margin: 20px 0;">
+                        <h4>Open the file, you'll see:</h4>
+                        <pre style="margin: 10px 0;"><code><span style="color: #ff6b6b;"><<<<<<< HEAD</span>
+Your changes
+<span style="color: #ffbd2e;">=======</span>
+Their changes
+<span style="color: #ff6b6b;">>>>>>>> feature-branch</span></code></pre>
+                    </div>
+                    <div class="checklist">
+                        <div class="checklist-item fragment">
+                            <i class="fas fa-check"></i>
+                            <span>1. Edit the file, choose what to keep</span>
+                        </div>
+                        <div class="checklist-item fragment">
+                            <i class="fas fa-check"></i>
+                            <span>2. Remove conflict markers (<<<<, ====, >>>>)</span>
+                        </div>
+                        <div class="checklist-item fragment">
+                            <i class="fas fa-check"></i>
+                            <span>3. Stage the resolved file: git add index.html</span>
+                        </div>
+                        <div class="checklist-item fragment">
+                            <i class="fas fa-check"></i>
+                            <span>4. Complete the merge: git commit -m "Resolve merge conflict"</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- .gitignore -->
+            <section>
+                <h2>.gitignore File</h2>
+                <div class="neon-card">
+                    <h3><i class="fas fa-ban"></i> What is .gitignore?</h3>
+                    <p>A file that tells Git which files/folders to ignore</p>
+                    <div class="terminal" style="margin-top: 20px;">
+                        <div class="terminal-header">
+                            <span class="terminal-button red"></span>
+                            <span class="terminal-button yellow"></span>
+                            <span class="terminal-button green"></span>
+                        </div>
+                        <div class="terminal-content">
+                            <pre style="margin: 0;"><code><span class="terminal-comment"># Dependencies</span>
+node_modules/
+vendor/
+
+<span class="terminal-comment"># Environment variables</span>
+.env
+.env.local
+
+<span class="terminal-comment"># Build outputs</span>
+dist/
+build/
+*.min.js
+
+<span class="terminal-comment"># OS files</span>
+.DS_Store
+Thumbs.db
+
+<span class="terminal-comment"># IDE files</span>
+.vscode/
+.idea/
+*.swp</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Best Practices -->
+            <section>
+                <h2><span class="section-number">11</span> Best Practices</h2>
+                <div class="grid-2">
+                    <div class="neon-card fragment">
+                        <h3><i class="fas fa-clock"></i> Commit Often</h3>
+                        <ul>
+                            <li>Make small, focused commits</li>
+                            <li>Push at least once a day</li>
+                            <li>Don't let local branch get too far ahead</li>
+                        </ul>
+                    </div>
+                    <div class="neon-card fragment">
+                        <h3><i class="fas fa-comment"></i> Meaningful Messages</h3>
+                        <ul>
+                            <li>Be clear and descriptive</li>
+                            <li>Explain WHY, not just WHAT</li>
+                            <li>Follow team conventions</li>
+                        </ul>
+                    </div>
+                    <div class="neon-card fragment">
+                        <h3><i class="fas fa-code-branch"></i> Use Branches</h3>
+                        <ul>
+                            <li>Never work directly on main</li>
+                            <li>Create feature branches</li>
+                            <li>Delete merged branches</li>
+                        </ul>
+                    </div>
+                    <div class="neon-card fragment">
+                        <h3><i class="fas fa-sync-alt"></i> Pull Before Push</h3>
+                        <ul>
+                            <li>Always pull latest changes first</li>
+                            <li>Prevents conflicts</li>
+                            <li>Keeps code up to date</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Commands Cheatsheet -->
+            <section>
+                <h2><span class="section-number">12</span> Commands Cheatsheet</h2>
+                <table class="neon-table">
+                    <thead>
+                        <tr>
+                            <th>Command</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="fragment">
+                            <td><code>git init</code></td>
+                            <td>Initialize new repository</td>
+                        </tr>
+                        <tr class="fragment">
+                            <td><code>git clone &lt;url&gt;</code></td>
+                            <td>Clone existing repository</td>
+                        </tr>
+                        <tr class="fragment">
+                            <td><code>git status</code></td>
+                            <td>Check status of files</td>
+                        </tr>
+                        <tr class="fragment">
+                            <td><code>git add .</code></td>
+                            <td>Stage all changes</td>
+                        </tr>
+                        <tr class="fragment">
+                            <td><code>git commit -m "msg"</code></td>
+                            <td>Commit with message</td>
+                        </tr>
+                        <tr class="fragment">
+                            <td><code>git push origin main</code></td>
+                            <td>Push to remote</td>
+                        </tr>
+                        <tr class="fragment">
+                            <td><code>git pull origin main</code></td>
+                            <td>Pull from remote</td>
+                        </tr>
+                        <tr class="fragment">
+                            <td><code>git branch</code></td>
+                            <td>List branches</td>
+                        </tr>
+                        <tr class="fragment">
+                            <td><code>git checkout -b &lt;name&gt;</code></td>
+                            <td>Create & switch branch</td>
+                        </tr>
+                        <tr class="fragment">
+                            <td><code>git merge &lt;branch&gt;</code></td>
+                            <td>Merge branch</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- GitHub Workflow -->
+            <section>
+                <h2>GitHub Workflow</h2>
+                <div class="workflow-container" style="flex-wrap: wrap; justify-content: center; gap: 15px;">
+                    <div class="workflow-step fragment" style="max-width: 200px;">
+                        <div class="step-number">1</div>
+                        <h4>Clone Repo</h4>
+                        <code>git clone &lt;url&gt;</code>
+                    </div>
+                    <div class="workflow-step fragment" style="max-width: 200px;">
+                        <div class="step-number">2</div>
+                        <h4>Create Branch</h4>
+                        <code>git checkout -b feature</code>
+                    </div>
+                    <div class="workflow-step fragment" style="max-width: 200px;">
+                        <div class="step-number">3</div>
+                        <h4>Make Changes</h4>
+                        <i class="fas fa-code" style="font-size: 2em; color: var(--primary-color); margin-top: 10px;"></i>
+                    </div>
+                    <div class="workflow-step fragment" style="max-width: 200px;">
+                        <div class="step-number">4</div>
+                        <h4>Stage & Commit</h4>
+                        <code>git add . && git commit</code>
+                    </div>
+                    <div class="workflow-step fragment" style="max-width: 200px;">
+                        <div class="step-number">5</div>
+                        <h4>Push Branch</h4>
+                        <code>git push origin feature</code>
+                    </div>
+                    <div class="workflow-step fragment" style="max-width: 200px;">
+                        <div class="step-number">6</div>
+                        <h4>Create PR</h4>
+                        <i class="fab fa-github" style="font-size: 2em; color: var(--danger-color); margin-top: 10px;"></i>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Practice Exercises -->
+            <section>
+                <h2>Practice Exercises</h2>
+                <div class="grid-2">
+                    <div class="neon-card fragment">
+                        <h3 style="color: var(--success-color);"><i class="fas fa-dumbbell"></i> Exercise 1: First Commit</h3>
+                        <div class="checklist">
+                            <div class="checklist-item">
+                                <i class="fas fa-check"></i>
+                                <span>Create a new folder</span>
+                            </div>
+                            <div class="checklist-item">
+                                <i class="fas fa-check"></i>
+                                <span>Initialize Git</span>
+                            </div>
+                            <div class="checklist-item">
+                                <i class="fas fa-check"></i>
+                                <span>Create a hello.txt file</span>
+                            </div>
+                            <div class="checklist-item">
+                                <i class="fas fa-check"></i>
+                                <span>Stage and commit it</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="neon-card fragment">
+                        <h3 style="color: var(--primary-color);"><i class="fas fa-dumbbell"></i> Exercise 2: Branching</h3>
+                        <div class="checklist">
+                            <div class="checklist-item">
+                                <i class="fas fa-check"></i>
+                                <span>Create branch feature/greeting</span>
+                            </div>
+                            <div class="checklist-item">
+                                <i class="fas fa-check"></i>
+                                <span>Modify hello.txt</span>
+                            </div>
+                            <div class="checklist-item">
+                                <i class="fas fa-check"></i>
+                                <span>Commit the change</span>
+                            </div>
+                            <div class="checklist-item">
+                                <i class="fas fa-check"></i>
+                                <span>Switch back to main & merge</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Troubleshooting -->
+            <section>
+                <h2>Troubleshooting Common Issues</h2>
+                <div class="timeline">
+                    <div class="timeline-item fragment">
+                        <h3 style="color: var(--danger-color);"><i class="fas fa-bug"></i> "fatal: not a git repository"</h3>
+                        <div class="terminal">
+                            <div class="terminal-content">
+                                <div class="terminal-comment"># You're not in a Git repo. Initialize one:</div>
+                                <div><span class="terminal-prompt">$</span> git init</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="timeline-item fragment">
+                        <h3 style="color: var(--danger-color);"><i class="fas fa-bug"></i> "remote origin already exists"</h3>
+                        <div class="terminal">
+                            <div class="terminal-content">
+                                <div class="terminal-comment"># Remove existing remote first:</div>
+                                <div><span class="terminal-prompt">$</span> git remote remove origin</div>
+                                <div><span class="terminal-prompt">$</span> git remote add origin &lt;new-url&gt;</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="timeline-item fragment">
+                        <h3 style="color: var(--danger-color);"><i class="fas fa-bug"></i> "Updates were rejected"</h3>
+                        <div class="terminal">
+                            <div class="terminal-content">
+                                <div class="terminal-comment"># Pull first, then push:</div>
+                                <div><span class="terminal-prompt">$</span> git pull origin main</div>
+                                <div><span class="terminal-prompt">$</span> git push origin main</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Remember Section -->
+            <section>
+                <h2>Remember!</h2>
+                <div class="grid-2">
+                    <div class="highlight-box fragment">
+                        <h3><i class="fas fa-exclamation-circle"></i> Don't Panic!</h3>
+                        <ul>
+                            <li>Git can be confusing at first</li>
+                            <li>Most mistakes are fixable</li>
+                            <li>When in doubt, ask for help!</li>
+                        </ul>
+                    </div>
+                    <div class="highlight-box fragment">
+                        <h3><i class="fas fa-bullseye"></i> Practice Makes Perfect</h3>
+                        <ul>
+                            <li>Use Git for every project</li>
+                            <li>Experiment in test repos</li>
+                            <li>Learn by doing</li>
+                        </ul>
+                    </div>
+                    <div class="highlight-box fragment">
+                        <h3><i class="fas fa-comment-dots"></i> Commit Messages Matter</h3>
+                        <ul>
+                            <li>Your future self will thank you</li>
+                            <li>Your teammates will thank you</li>
+                            <li>Clear messages = better collaboration</li>
+                        </ul>
+                    </div>
+                    <div class="highlight-box fragment">
+                        <h3><i class="fas fa-sync"></i> Pull Before You Push</h3>
+                        <ul>
+                            <li>Prevents conflicts</li>
+                            <li>Keeps your code up to date</li>
+                            <li>Saves you headaches</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Final Slide -->
+            <section class="title-slide center">
+                <h1 style="font-size: 3.5em;">🎉 Happy Coding!</h1>
+                <div class="quote-box" style="max-width: 800px; margin: 40px auto;">
+                    <p style="font-size: 1.3em; text-align: center;">Every expert was once a beginner.<br>You've got this!</p>
+                </div>
+                <div style="margin-top: 50px;">
+                    <div class="tag tag-good" style="font-size: 1.2em; padding: 15px 30px;">Git commit to learning Git!</div>
+                </div>
+                <p style="color: var(--success-color); font-size: 1.2em; margin-top: 50px;">Master Git, Master Your Code!</p>
+            </section>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.min.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            slideNumber: true,
+            transition: 'slide',
+            backgroundTransition: 'fade',
+            controls: true,
+            progress: true,
+            center: false,
+            width: 1400,
+            height: 800,
+            margin: 0.05,
+            minScale: 0.15,
+            maxScale: 2.5
+        });
+    </script>
+</body>
+</html>
