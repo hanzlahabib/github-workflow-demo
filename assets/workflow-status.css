@@ -1,0 +1,59 @@
+/* Sample CSS for workflow status indicators */
+
+.workflow-status {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-backlog {
+    background-color: #f6f8fa;
+    color: #656d76;
+    border: 1px solid #d1d9e0;
+}
+
+.status-todo {
+    background-color: #ddf4ff;
+    color: #0969da;
+    border: 1px solid #54aeff;
+}
+
+.status-in-progress {
+    background-color: #fff8dc;
+    color: #bf8700;
+    border: 1px solid #d4ac00;
+}
+
+.status-blocked {
+    background-color: #ffebe9;
+    color: #cf222e;
+    border: 1px solid #ff7a7a;
+}
+
+.status-review {
+    background-color: #f0e6ff;
+    color: #8250df;
+    border: 1px solid #a475f9;
+}
+
+.status-done {
+    background-color: #dcfdf0;
+    color: #1a7f37;
+    border: 1px solid #2da44e;
+}
+
+.status-released {
+    background-color: #e6f7ff;
+    color: #0550ae;
+    border: 1px solid #218bff;
+}
+
+/* Usage example in HTML:
+<span class="workflow-status status-in-progress">In Progress</span>
+<span class="workflow-status status-review">Code Review</span>
+<span class="workflow-status status-done">Done</span>
+*/
